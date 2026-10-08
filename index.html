@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="SignalTwin rebuilds a junction from video as a simulation and tests signal plans on identical traffic before you change anything." />
+    <meta name="theme-color" content="#DDE2DE" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>SignalTwin</title>
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('signaltwin-theme');
+          if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

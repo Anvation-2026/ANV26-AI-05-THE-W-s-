@@ -1,0 +1,46 @@
+{
+    "name":  "signaltwin-web",
+    "private":  true,
+    "version":  "0.1.0",
+    "type":  "module",
+    "scripts":  {
+                    "dev":  "vite",
+                    "build":  "tsc --noEmit && vite build",
+                    "preview":  "vite preview",
+                    "typecheck":  "tsc --noEmit",
+                    "test":  "vitest run",
+                    "shots":  "node scripts/shots.mjs",
+                    "e2e":  "node scripts/e2e.mjs",
+                    "axe":  "node scripts/axe.mjs",
+                    "worstcase":  "node scripts/worstcase.mjs",
+                    "tune":  "vite-node scripts/tune.ts"
+                },
+    "dependencies":  {
+                         "@fontsource/atkinson-hyperlegible-next":  "^5.3.0",
+                         "@fontsource/overpass":  "^5.3.0",
+                         "@fontsource/overpass-mono":  "^5.3.0",
+                         "d3-scale":  "^4.0.2",
+                         "d3-shape":  "^3.2.0",
+                         "motion":  "^14.0.0",
+                         "react":  "^18.3.1",
+                         "react-dom":  "^18.3.1",
+                         "react-router-dom":  "^7.18.4",
+                         "zod":  "^4.6.5",
+                         "zustand":  "^5.0.15"
+                     },
+    "devDependencies":  {
+                            "@axe-core/playwright":  "^4.13.0",
+                            "@types/d3-scale":  "^4.0.9",
+                            "@types/d3-shape":  "^3.2.0",
+                            "@types/react":  "^18.3.31",
+                            "@types/react-dom":  "^18.3.7",
+                            "@vitejs/plugin-react":  "^6.1.2",
+                            "playwright":  "^1.64.0",
+                            "typescript":  "^7.0.2",
+                            "vite":  "^8.3.3",
+                            "vitest":  "^5.0.3"
+                        },
+    "engines":  {
+                    "node":  "\u003e=20.19"
+                }
+}

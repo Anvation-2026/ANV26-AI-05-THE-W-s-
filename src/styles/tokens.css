@@ -1,0 +1,90 @@
+﻿:root,
+[data-theme='light'] {
+  --ground: #dde2de;
+  --surface: #e8ece9;
+  --surface-2: #d3d9d5;
+  --ink: #1d2321;
+  --ink-muted: #55605b;
+  --rule: #bcc5bf;
+  --sign: #0b5d46;
+  --sign-hover: #094a38;
+  --sign-ink: #f1f4ee;
+  --paint: #e2ae12;
+  --paint-ink: #1d2321;
+  --asphalt: #2a302e;
+  --asphalt-2: #353c3a;
+  --marking: #edefe8;
+  --marking-muted: #b4bbb5;
+  --go: #2f7d4e;
+  --caution: #c28a0a;
+  --stop: #b03a2a;
+  --stop-text: #a43323;
+  --focus: #1d2321;
+  --series-old: #55605b;
+  --series-new: #0b5d46;
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --ground: #151a18;
+  --surface: #1e2522;
+  --surface-2: #272f2b;
+  --ink: #e3e7e1;
+  --ink-muted: #9aa59e;
+  --rule: #323b37;
+  --sign: #3da37f;
+  --sign-hover: #52b693;
+  --sign-ink: #0e1512;
+  --paint: #e8b923;
+  --paint-ink: #1d2321;
+  --asphalt: #0f1412;
+  --asphalt-2: #1a211e;
+  --marking: #d9ddd3;
+  --marking-muted: #7f8a84;
+  --go: #3f9a62;
+  --caution: #d79d1a;
+  --stop: #c9503f;
+  --stop-text: #ea7f6d;
+  --focus: #e8b923;
+  --series-old: #9aa59e;
+  --series-new: #3da37f;
+  color-scheme: dark;
+}
+
+:root {
+  --font-display: 'Overpass', 'Arial Narrow', Arial, sans-serif;
+  --font-body: 'Atkinson Hyperlegible Next', 'Segoe UI', Arial, sans-serif;
+  --font-mono: 'Overpass Mono', Consolas, monospace;
+
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 72px;
+  --s-9: 120px;
+
+  --fs-12: 0.75rem;
+  --fs-14: 0.875rem;
+  --fs-16: 1rem;
+  --fs-18: 1.125rem;
+  --fs-22: 1.375rem;
+  --fs-28: 1.75rem;
+  --fs-40: 2.5rem;
+  --fs-64: 4rem;
+  --fs-96: 6rem;
+
+  --radius: 2px;
+  --topbar-h: 56px;
+  --nav-w: 232px;
+  --nav-w-small: 64px;
+
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --t-micro: 120ms;
+  --t-std: 200ms;
+  --t-panel: 360ms;
+}
+
