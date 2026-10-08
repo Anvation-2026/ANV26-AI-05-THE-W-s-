@@ -1,6 +1,6 @@
 # SignalTwin front end
 
-A complete front end for SignalTwin: a video-calibrated digital twin that tests an adaptive signal plan against the existing plan on identical traffic. This version has no back end. Everything runs in the browser through a mock layer that can be replaced later.
+A complete front end for SignalTwin: a video-calibrated digital twin that tests an adaptive signal plan against the existing plan on identical traffic. It runs entirely in the browser, and it can also talk to the Python back end in `signaltwin-api/` to analyse an uploaded video. With no back end connected nothing is sent anywhere.
 
 SignalTwin recommends a plan. It does not control any signal.
 
@@ -15,12 +15,27 @@ npm run preview      # serve the build
 
 Node 20 or newer. Chrome, Edge, Firefox and Safari current versions.
 
+### With the back end
+
+```
+cd signaltwin-api
+python -m venv .venv && .venv/Scripts/pip install -e ".[vision,dev]"   # on macOS or Linux: .venv/bin/pip
+.venv/Scripts/python -m uvicorn signaltwin_api.main:app --port 8000
+# in another terminal, in the repo root
+copy .env.example .env.local      # sets VITE_API_URL=http://localhost:8000
+npm run dev
+```
+
+The top bar then says Back end connected. See `signaltwin-api/README.md` for the model file and options, and `docs/API.md` for the endpoints.
+
 ## Checks
 
 ```
 npm test             # 28 engine tests (Vitest)
 npm run e2e          # 26 interaction steps across every page (Playwright, needs Chrome)
 npm run axe          # accessibility scan of 14 routes in light and dark
+npm run e2e:backend  # upload, analysis, Perception, Demand, Twin, cancel and delete against the real back end
+npm run fixtures     # regenerate the golden files the back end's tests compare against
 npm run worstcase    # long names, Arabic and Devanagari names, huge CSV, short video, collinear points
 npm run shots        # screenshots, for example: node scripts/shots.mjs "/,/console" 1440,1024,390 light,dark
 ```
@@ -68,13 +83,17 @@ docs/          design decisions, button audit, back end handoff
 scripts/       tuning, tests and screenshot scripts
 ```
 
-## What is real and what is mocked
+## What is real and what is not
 
-Real, computed in the browser: demand binning and smoothing, saturation flow from stop-line headways, the homography from four calibration points, the simulator, the three controllers, all metrics and confidence intervals, the twin validation, CSV and JSON exports.
+Real, computed in the browser: demand binning and smoothing, saturation flow from stop-line headways, the homography from four calibration points, the simulator, the controllers, all metrics and confidence intervals, the twin validation, CSV and JSON exports.
 
-Mocked: vehicle detection. The sample junction generates a plan-view feed whose detections have realistic jitter and confidence. For an uploaded video the page plays the real video with your geometry drawn on it. Detections appear only if you import a perception file in the format described in `src/contracts`. The app never draws fake boxes on your video.
+With the back end connected, an uploaded video is analysed on the server: YOLO finds vehicles, ByteTrack follows them, and lines, zones and the calibration turn the tracks into counts, queues, waits, speeds and a measured saturation flow. The Perception, Demand and Twin pages then use your video's own numbers. The simulator can also run on the server and gives the same numbers as the browser, which the back end's tests check against files written by this app's engine.
 
-See `docs/BACKEND_HANDOFF.md` for exactly what the back end replaces.
+Not real: with no back end, detection on the sample junction is a generated plan-view feed whose detections have realistic jitter and confidence. An uploaded video then plays with your drawing on it, and boxes appear only if you import a perception file. The app never draws fake boxes on your video.
+
+Not measured: how well the stock YOLO model counts vehicles in real footage. See `docs/MEASUREMENTS.md` for what was measured, against synthetic ground truth, and what was not.
+
+See `docs/BACKEND_HANDOFF.md` and `docs/API.md` for how the two sides fit together.
 
 ## Honest notes on results
 

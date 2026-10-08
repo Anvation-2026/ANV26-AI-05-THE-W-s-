@@ -6,6 +6,7 @@ import { Histogram, LineChart, type Series } from '../components/charts';
 import { Badge, Button, Check, Dialog, EmptyState, FileDrop, PageHeader, Segmented, toast } from '../components/ui';
 import { useApp } from '../store/app';
 import { useVideo } from '../store/video';
+import { baseUrl, useBackend } from '../api/backend';
 import { useRunner } from '../hooks/useRunner';
 import { useCommands } from '../shell/Layout';
 import { useRunStatus } from '../shell/status';
@@ -14,6 +15,7 @@ import { DEFAULT_OPTIONS, NO_NOISE } from '../engine/params';
 import { Sim } from '../engine/sim';
 import { hash01 } from '../engine/rng';
 import { Footer } from '../shell/Layout';
+import { RecordedPanels, VideoPerception } from '../components/RecordedVideo';
 
 type Source = 'sample' | 'file' | 'backend';
 
@@ -22,10 +24,17 @@ export default function Perception() {
   const junction = useApp((s) => s.junction);
   const perception = useApp((s) => s.perception);
   const setPerception = useApp((s) => s.setPerception);
+  const origin = useApp((s) => s.perceptionOrigin);
+  const serverVideo = useApp((s) => s.serverVideo);
+  const backendStatus = useBackend((s) => s.status);
+  const apiKey = useBackend((s) => s.apiKey);
   const video = useVideo();
   const setStatus = useRunStatus((s) => s.set);
   const hasVideo = junction.source === 'video' && !!video.url;
-  const [source, setSource] = useState<Source>(hasVideo ? 'file' : 'sample');
+  // the video to show: the file in this browser if it is still loaded, otherwise the copy on the server
+  const serverUrl = serverVideo && backendStatus !== 'offline' && backendStatus !== 'none' ? `${baseUrl()}/v1/videos/${serverVideo.videoId}/stream${apiKey ? `?api_key=${encodeURIComponent(apiKey)}` : ''}` : null;
+  const videoUrl = video.url ?? serverUrl;
+  const [source, setSource] = useState<Source>(origin === 'backend' && perception ? 'backend' : hasVideo ? 'file' : 'sample');
   const [logic, setLogic] = useState<'vac' | 'observed' | 'signaltwin'>('vac');
   const [layers, setLayers] = useState({ boxes: true, ids: true, speeds: false, counts: true, queueZones: true });
   const [importOpen, setImportOpen] = useState(false);
@@ -121,7 +130,9 @@ export default function Perception() {
     }
   };
 
-  const fileMode = source === 'file';
+  const fileMode = source === 'file' || source === 'backend';
+  const isBackend = source === 'backend';
+  const shown = fileMode && (isBackend ? origin === 'backend' : origin !== 'backend') ? perception : null;
   const total = stats.counts.reduce((s, r) => s + r.reduce((a, b) => a + b, 0), 0);
   const maxQ = sim ? Math.max(0, ...sim.maxQueue) : 0;
 
@@ -146,7 +157,11 @@ export default function Perception() {
               options={[
                 { value: 'sample', label: 'Sample feed' },
                 { value: 'file', label: 'Imported perception file' },
-                { value: 'backend', label: 'Back end', disabledReason: 'Not connected yet. This version has no vision back end.' },
+                {
+                  value: 'backend',
+                  label: 'Back end',
+                  disabledReason: backendStatus === 'connected' || backendStatus === 'degraded' || (origin === 'backend' && !!perception) ? undefined : 'The back end is not connected. Start it (see the README) and press Check again in the Back end settings.',
+                },
               ]}
               onChange={setSource}
             />
@@ -176,7 +191,7 @@ export default function Perception() {
               <Check label="Speeds" checked={layers.speeds} onChange={(v) => setLayers({ ...layers, speeds: v })} />
             </div>
           </div>
-          <Badge tone={fileMode ? 'plain' : 'paint'}>{fileMode ? 'Your video' : 'Sample data'}</Badge>
+          <Badge tone={fileMode ? 'plain' : 'paint'}>{isBackend ? 'Your video, back end' : fileMode ? 'Your video' : 'Sample data'}</Badge>
         </div>
 
         <div className="split split-b" style={{ marginTop: 'var(--s-3)' }}>
@@ -192,7 +207,7 @@ export default function Perception() {
                 </div>
               </>
             )}
-            {fileMode && <VideoPerception hasVideo={hasVideo} url={video.url} perception={perception} layers={layers} onImport={() => setImportOpen(true)} />}
+            {fileMode && <VideoPerception hasVideo={!!videoUrl} url={videoUrl} perception={shown} layers={layers} geometry={junction.geometry} backend={isBackend} onImport={() => setImportOpen(true)} />}
           </section>
 
           <div className="stack">
@@ -216,7 +231,7 @@ export default function Perception() {
                     {APPROACHES.map((a, ap) => (
                       <tr key={a}>
                         <td>{APPROACH_NAMES[a]}</td>
-                        {(fileMode ? fileCounts(perception)[ap] : stats.counts[ap]).map((n, i) => (
+                        {(fileMode ? fileCounts(shown)[ap] : stats.counts[ap]).map((n, i) => (
                           <td key={i} className="num">
                             {n}
                           </td>
@@ -227,7 +242,7 @@ export default function Perception() {
                 </table>
               </div>
               <p className="muted tnum" style={{ marginTop: 8 }}>
-                {fileMode ? (perception ? 'From your imported file.' : 'No detections for this video yet.') : `${total} vehicles crossed the upstream lines so far. Sample run.`}
+                {fileMode ? (shown ? (isBackend ? 'Counted by the back end on your upstream lines.' : 'From your imported file.') : isBackend ? 'No back end analysis yet. Run Analyse video in the last step of Setup.' : 'No detections for this video yet.') : `${total} vehicles crossed the upstream lines so far. Sample run.`}
               </p>
             </section>
             {!fileMode && (
@@ -243,17 +258,18 @@ export default function Perception() {
                 </section>
               </>
             )}
+            {fileMode && shown && <RecordedPanels perception={shown} backend={isBackend} />}
             <section className="panel" aria-labelledby="weak-h">
               <h2 id="weak-h">Known weaknesses</h2>
               <ul style={{ marginTop: 8 }}>
                 <li>
-                  <strong>Occlusion in dense traffic.</strong> {fileMode ? 'Not measured until detections exist.' : `Peak queue so far is ${maxQ.toFixed(0)} PCU. Risk rises above about 25 PCU, when vehicles hide each other.`}
+                  <strong>Occlusion in dense traffic.</strong> {fileMode ? (shown?.quality ? `${(shown.quality.trackFragmentation * 100).toFixed(0)} percent of tracks stopped inside the picture, which is what hidden vehicles look like. Lower is better.` : 'Not measured until detections exist.') : `Peak queue so far is ${maxQ.toFixed(0)} PCU. Risk rises above about 25 PCU, when vehicles hide each other.`}
                 </li>
                 <li>
-                  <strong>Night video.</strong> {fileMode ? 'Check the clip. Night footage loses small vehicles first.' : 'The sample feed is daylight, so this risk is not exercised here.'}
+                  <strong>Night video.</strong> {fileMode ? (shown?.quality ? (shown.quality.lowLight ? 'This clip is dark. Small vehicles are the first to be missed.' : 'This clip is bright enough. Night footage would lose small vehicles first.') : 'Check the clip. Night footage loses small vehicles first.') : 'The sample feed is daylight, so this risk is not exercised here.'}
                 </li>
                 <li>
-                  <strong>Two-wheelers weaving between lanes.</strong> {fileMode ? 'Not measured until detections exist.' : `Two-wheelers are ${(stats.twoShare * 100).toFixed(0)} percent of vehicles so far. They are the class most often missed or merged.`}
+                  <strong>Two-wheelers weaving between lanes.</strong> {fileMode ? (shown?.counts?.length ? `Two-wheelers are ${((shown.counts.filter((c) => c.line === 'upstream' && c.cls === 'twoWheeler').length / Math.max(1, shown.counts.filter((c) => c.line === 'upstream').length)) * 100).toFixed(0)} percent of counted vehicles. They are the class most often missed or merged.` : 'Not measured until detections exist.') : `Two-wheelers are ${(stats.twoShare * 100).toFixed(0)} percent of vehicles so far. They are the class most often missed or merged.`}
                 </li>
               </ul>
               <p className="muted" style={{ marginTop: 8 }}>
@@ -299,76 +315,3 @@ function EventStrip({ ticks, duration, t }: { ticks: number[]; duration: number;
     </svg>
   );
 }
-
-function VideoPerception({ hasVideo, url, perception, layers, onImport }: { hasVideo: boolean; url: string | null; perception: PerceptionResult | null; layers: { boxes: boolean; ids: boolean }; onImport: () => void }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  const [t, setT] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  useEffect(() => {
-    const v = ref.current;
-    if (!v) return;
-    const on = () => {
-      setT(v.currentTime);
-      setPlaying(!v.paused);
-    };
-    ['timeupdate', 'play', 'pause', 'seeked'].forEach((e) => v.addEventListener(e, on));
-    return () => ['timeupdate', 'play', 'pause', 'seeked'].forEach((e) => v.removeEventListener(e, on));
-  }, [url]);
-  if (!hasVideo || !url) {
-    return (
-      <EmptyState
-        title="No video is loaded"
-        body="Videos are not kept between visits. Load the video again in Setup, or switch the source to the sample feed."
-        action={
-          <a className="btn btn-primary" href="/setup">
-            Go to Setup
-          </a>
-        }
-      />
-    );
-  }
-  const frame = perception ? perception.frames.reduce((best, f) => (Math.abs(f.t - t) < Math.abs(best.t - t) ? f : best), perception.frames[0]) : null;
-  const W = perception?.width ?? ref.current?.videoWidth ?? 1280;
-  const H = perception?.height ?? ref.current?.videoHeight ?? 720;
-  return (
-    <div className="stack-sm">
-      <div className="canvas-stage" style={{ position: 'relative' }}>
-        <video ref={ref} src={url} muted playsInline preload="auto" style={{ width: '100%', display: 'block' }} aria-label="Your video with detections" />
-        {frame && (
-          <svg viewBox={`0 0 ${W} ${H}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} aria-hidden="true">
-            {layers.boxes &&
-              frame.detections.map((d) => (
-                <g key={d.id}>
-                  <rect x={d.x - d.w / 2} y={d.y - d.h / 2} width={d.w} height={d.h} fill="none" stroke="var(--marking)" strokeWidth={Math.max(1.5, W / 640)} strokeDasharray={d.cls === 'twoWheeler' ? '3 3' : d.cls === 'autoRickshaw' ? '8 4' : d.cls === 'truck' ? '14 4' : undefined} />
-                  <text x={d.x - d.w / 2} y={d.y - d.h / 2 - 3} fill="var(--marking)" fontSize={Math.max(10, W / 100)} fontWeight="700">
-                    {d.cls[0].toUpperCase()}
-                    {layers.ids ? d.id : ''} {d.conf.toFixed(2)}
-                  </text>
-                </g>
-              ))}
-          </svg>
-        )}
-      </div>
-      <div className="panel row">
-        <Button variant="secondary" icon={playing ? 'pause' : 'play'} onClick={() => (ref.current?.paused ? ref.current.play() : ref.current?.pause())}>
-          {playing ? 'Pause' : 'Play'}
-        </Button>
-        <Button variant="secondary" icon="step" onClick={() => ref.current && (ref.current.currentTime += 1 / 30)}>
-          Step frame
-        </Button>
-        <input className="slider" style={{ flex: 1, minWidth: 160 }} type="range" min={0} max={ref.current?.duration || 1} step={0.04} value={t} aria-label="Video time" onChange={(e) => ref.current && (ref.current.currentTime = Number(e.target.value))} />
-        <span className="tnum muted">{t.toFixed(1)} s</span>
-      </div>
-      {!perception && (
-        <div className="empty" role="status">
-          <h3>No detections for this video yet</h3>
-          <p className="muted">Import a perception file to draw boxes and counts on your video, or switch the source to the sample feed.</p>
-          <Button variant="primary" icon="upload" onClick={onImport}>
-            Import perception file
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-

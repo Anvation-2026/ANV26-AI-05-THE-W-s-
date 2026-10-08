@@ -1,6 +1,6 @@
 # Button audit
 
-Every button, toggle, slider, link and form control, with what it calls and what the user sees. The end-to-end script `scripts/e2e.mjs` exercises the ones marked with a star. No control is inert. Controls that depend on the back end are wired to the mock and say so.
+Every button, toggle, slider, link and form control, with what it calls and what the user sees. The end-to-end script `scripts/e2e.mjs` exercises the ones marked with a star, and `scripts/e2e-backend.mjs` exercises the ones marked with a dagger against the real back end. No control is inert. Controls that need the back end are disabled with the reason when it is not connected.
 
 "Store" means the saved state in `src/store/app.ts`. "Runner" means the live simulation in `src/engine/live.ts`.
 
@@ -11,6 +11,9 @@ Every button, toggle, slider, link and form control, with what it calls and what
 | Skip to content link | Browser anchor | Focus moves to the main region |
 | Wordmark link * | Router | Goes to Home |
 | Junction select | `setJunction(SAMPLE_JUNCTION)` | Switches to the sample junction and shows a toast |
+| Back end badge † | Opens the Back end dialog | Shows connected, checking, needs a model or not connected |
+| Back end dialog: address, access key, Check again † | `setUrl`, `setApiKey`, `check` | Saves the address, re-runs the health check, shows version, model, queue, limits |
+| Back end dialog: Where simulations run † | `setSimulation` | Browser (default) or back end. Same numbers either way |
 | Keyboard shortcuts button * | Opens dialog | Lists every shortcut. Escape closes |
 | Theme button * | `ThemeContext.toggle` | Switches light and dark, saved in the browser |
 | Navigation links (ten) * | Router | Goes to the page and marks it current |
@@ -60,19 +63,24 @@ Every button, toggle, slider, link and form control, with what it calls and what
 | Save draft | `saveDraft` | Stores the draft in the browser |
 | Reset step | `resetStep` | Confirms, then clears the step |
 | Save junction * | `save` | Writes the junction to the store |
+| Analyse video † | `AnalysePanel.start` | Asks for consent once, uploads with progress, queues, shows stages and time left, then stores the result |
+| Upload and analyse (consent notice) † | `giveUploadConsent` | Records the answer in this browser and starts |
+| Cancel (during an analysis) † | `AbortController.abort` | Stops the upload or job and tells the server to cancel |
+| Try again, Analyse again † | `start` | Repeats the analysis, answered from cache when nothing changed |
+| Open Perception, Use in Demand | Router | Opens the page that uses the result |
 
 ## Perception
 
 | Control | Handler | Result |
 | --- | --- | --- |
 | Import perception file * | Opens dialog | Validates against the schema and loads detections |
-| Detection source: Sample feed, Imported file * | `setSource` | Switches the view. Back end is disabled with the reason |
+| Detection source: Sample feed, Imported file, Back end *† | `setSource` | Switches the view. Back end is disabled with the reason until the server is connected |
 | Signal logic on this feed: VAC, Fixed plan as recorded, SignalTwin * | `setLogic` | Rebuilds the sample feed with that signal logic. VAC is the default |
 | Layer checkboxes (five) * | `setLayers` | Show or hide boxes, track numbers, counting lines, queue zones, speeds |
 | Transport and scrubber * | Runner | Plays, steps and seeks the sample feed |
 | View as table (each chart) | `ChartFrame` | Swaps the chart for its numbers |
 | Remove the current file | `setPerception(null)` | Clears the imported detections |
-| Video controls on your video | Video element | Plays and scrubs, with detections when a file is loaded |
+| Video controls on your video † | Video element | Plays and scrubs. Boxes follow the frame on screen. Lines and zones are drawn from your drawing |
 
 ## Demand
 
@@ -178,7 +186,8 @@ Every button, toggle, slider, link and form control, with what it calls and what
 | --- | --- | --- |
 | Contents links * | Anchors | Scroll to the section and mark it current |
 | Copy link on headings * | `copyText` | Copies the link to that heading |
-| Delete all local data * | `clearAllLocalData` | Confirms, removes everything stored, resets to the sample |
+| Delete my video and results † | `deleteMyVideoAndResults` | Confirms, deletes the video, analyses and results on the server, then the saved result in this browser |
+| Delete all data * | `clearAllLocalData` | Confirms, deletes the server copy first if there is one, then removes everything stored and resets to the sample |
 | 404 links | Router | Console, Setup, Method, Home |
 | Error page: Copy details, Reload page, Reset local data | Clipboard, reload, `clearAllLocalData` | Copies the error, reloads, or wipes local data |
 

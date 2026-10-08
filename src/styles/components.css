@@ -19,7 +19,7 @@
   color: var(--marking);
 }
 .topbar a,
-.topbar button {
+.topbar button:not(.badge) {
   color: inherit;
 }
 .brand {
@@ -554,6 +554,15 @@
   color: var(--paint-ink);
   border-radius: var(--radius);
   white-space: nowrap;
+}
+.badge-button {
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+.badge-button:hover {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
 }
 .badge-plain {
   background: var(--surface-2);

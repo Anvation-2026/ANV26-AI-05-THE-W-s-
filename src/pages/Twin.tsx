@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { JunctionView } from '../components/JunctionView';
 import { Transport } from '../components/widgets';
 import { Histogram, LineChart } from '../components/charts';
@@ -7,7 +7,8 @@ import { useApp } from '../store/app';
 import { useRunner } from '../hooks/useRunner';
 import { useCommands, Footer } from '../shell/Layout';
 import { useRunStatus } from '../shell/status';
-import { CAPTURE_DURATION, getSampleCapture } from '../engine/capture';
+import { captureFromPerception, getSampleCapture } from '../engine/capture';
+import { Link } from 'react-router-dom';
 import { binArrivals, estimateDemand } from '../engine/demand';
 import { validateTwin } from '../engine/twin';
 import { DEFAULT_OPTIONS, NO_NOISE } from '../engine/params';
@@ -18,6 +19,8 @@ export default function Twin() {
   const setParams = useApp((s) => s.setParams);
   const junction = useApp((s) => s.junction);
   const calibrated = useApp((s) => s.calibrated);
+  const perception = useApp((s) => s.perception);
+  const origin = useApp((s) => s.perceptionOrigin);
   const setCalibrated = useApp((s) => s.setCalibrated);
   const setStatus = useRunStatus((s) => s.set);
 
@@ -32,20 +35,23 @@ export default function Twin() {
     return () => window.clearTimeout(id);
   }, []);
 
-  const local = useMemo(() => ({ ...params, satFlowPerLane: sat, startupLost: startup, travelMin: tMin, travelMax: Math.max(tMin, tMax), horizon: CAPTURE_DURATION }), [params, sat, startup, tMin, tMax]);
-  const cap = useMemo(() => getSampleCapture(params, junction.observed), [params, junction.observed]);
+  // the clip is the person's own video once the back end has analysed it, otherwise the sample junction's recorded run
+  const userCap = useMemo(() => (junction.source === 'video' && perception && origin === 'backend' ? captureFromPerception(perception, params, junction.observed) : null), [junction.source, perception, origin, params, junction.observed]);
+  const cap = useMemo(() => userCap ?? getSampleCapture(params, junction.observed), [userCap, params, junction.observed]);
+  const duration = cap.duration;
+  const local = useMemo(() => ({ ...params, satFlowPerLane: sat, startupLost: startup, travelMin: tMin, travelMax: Math.max(tMin, tMax), horizon: duration }), [params, sat, startup, tMin, tMax, duration]);
   const est = useMemo(() => estimateDemand(binArrivals(cap.arrivals, cap.duration, params.binSeconds), local), [cap, params.binSeconds, local]);
   const val = useMemo(() => validateTwin(local, cap, est.profile, junction.observed, seed), [local, cap, est, junction.observed, seed]);
 
   const factory = useCallback(
     () => [
-      new Sim({ params: local, demand: est.profile, kind: 'observed', options: DEFAULT_OPTIONS, seed, horizon: CAPTURE_DURATION, noise: NO_NOISE, emergencies: [], observed: junction.observed }),
+      new Sim({ params: local, demand: est.profile, kind: 'observed', options: DEFAULT_OPTIONS, seed, horizon: duration, noise: NO_NOISE, emergencies: [], observed: junction.observed }),
     ],
-    [local, est, seed, junction.observed],
+    [local, est, seed, junction.observed, duration],
   );
-  const runner = useRunner(factory, CAPTURE_DURATION, [factory]);
+  const runner = useRunner(factory, duration, [factory]);
   useEffect(() => {
-    runner.seek(150);
+    runner.seek(Math.min(150, duration / 2));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useCommands({ toggle: () => runner.toggle(), restart: () => runner.reset(), speed: (d) => runner.setSpeed(Math.max(1, Math.min(8, d > 0 ? runner.speed * 2 : runner.speed / 2))) });
@@ -67,6 +73,24 @@ export default function Twin() {
     <>
       <div className="page page-wide">
         <PageHeader title="Twin" lede="Check that the simulator matches the video before you trust it. The twin replays the observed plan on the measured demand and its queues are compared with the queues the clip showed." />
+        {cap.origin === 'sample' && junction.source === 'video' && (
+          <div className="empty" role="status">
+            <h3>Your video has not been analysed yet</h3>
+            <p className="muted">This page is showing the sample junction's recorded run. To check the twin against your own video, analyse it in the last step of Setup.</p>
+            <Link className="btn btn-primary" to="/setup">
+              Go to Setup
+            </Link>
+          </div>
+        )}
+        {cap.origin === 'video' && !cap.hasQueue && (
+          <div className="error-state" role="alert">
+            <h3>No queue was measured in your video</h3>
+            <p>No vehicle waited inside a queue zone, so there is nothing to compare the twin with. The verdict below is not meaningful.</p>
+            <p>
+              <strong>What to do:</strong> check that a queue zone is drawn over the waiting area for every approach in Setup, step 2, then analyse the video again. A clip with a red phase and a visible queue works best.
+            </p>
+          </div>
+        )}
         <div className="split split-a">
           <section className="stack-sm" aria-label="Twin run">
             <div className="panel-asphalt on-asphalt" style={{ padding: 8 }}>
@@ -178,7 +202,13 @@ export default function Twin() {
                   <li className="muted">Close match needs a cycle-averaged error under 20 percent and a correlation above 0.85. Moderate needs under 40 percent and above 0.6. The twin line is the average of {val.seeds} random seeds, because the clip is one random day.</li>
                 </ul>
               </div>
-              <p className="muted">The clip is the sample junction's recorded run. It was produced with a saturation flow of about {Math.round(cap.trueSatFlowPerLane)} PCU per hour per lane, so the best calibration is close to that.</p>
+              <p className="muted">
+                {cap.origin === 'video'
+                  ? perception?.satFlow && !perception.satFlow.isDefault
+                    ? `The clip is your video. Queue discharge in it suggests a saturation flow of about ${Math.round(cap.trueSatFlowPerLane)} PCU per hour per lane, using ${params.lanes} inbound lane${params.lanes === 1 ? '' : 's'} per approach. If that is not the number of lanes on your road, change it on the Parameters page and analyse the video again.`
+                    : 'The clip is your video. Not enough queue discharge was seen to measure its saturation flow, so the value shown is the current parameter and not a measurement.'
+                  : `The clip is the sample junction's recorded run. It was produced with a saturation flow of about ${Math.round(cap.trueSatFlowPerLane)} PCU per hour per lane, so the best calibration is close to that.`}
+              </p>
             </section>
             <div className="home-pair">
               <section className="panel">

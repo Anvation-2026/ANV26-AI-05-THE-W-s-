@@ -11,7 +11,8 @@ import { useSetup } from '../hooks/useSetup';
 import { useRunner } from '../hooks/useRunner';
 import { useCommands, Footer } from '../shell/Layout';
 import { useRunStatus } from '../shell/status';
-import { startExperiment, type Job } from '../engine/workerClient';
+import { api } from '../api';
+import type { Job } from '../engine/workerClient';
 import type { GridRow } from '../engine/experiment';
 import { downloadText, mmss, toCsv } from '../lib/util';
 import type { DecisionEntry } from '../contracts';
@@ -87,7 +88,7 @@ export default function Controller() {
   const [grid, setGrid] = useState<{ rows: GridRow[]; best: GridRow | null } | null>(null);
   useEffect(() => () => job?.cancel(), [job]);
   const runGrid = async () => {
-    const j = startExperiment({ type: 'grid', setup, seeds: 5, betas: [0.5, 1, 1.5, 2], gammas: [0, 0.25, 0.5, 1, 2] }, (p) => setProg(p.done / p.total));
+    const j = api.runExperiment({ type: 'grid', setup, seeds: 5, betas: [0.5, 1, 1.5, 2], gammas: [0, 0.25, 0.5, 1, 2] }, (p) => setProg(p.done / p.total));
     setJob(j);
     setProg(0);
     try {

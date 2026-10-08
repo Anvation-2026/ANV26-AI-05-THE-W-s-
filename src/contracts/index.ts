@@ -190,7 +190,10 @@ export interface ComparisonResult {
   completedAt: string;
 }
 
-/** Output of the vision pipeline. The back end should emit exactly this. */
+/** Output of the vision pipeline. The back end emits exactly this. Everything after `counts` is optional, so a
+ * hand-made perception file (frames and counts only) is still valid. */
+const approachEnum = z.enum(APPROACHES);
+const classEnum = z.enum(VEHICLE_CLASSES);
 export const PerceptionSchema = z.object({
   fps: z.number().positive(),
   width: z.number().positive(),
@@ -201,7 +204,7 @@ export const PerceptionSchema = z.object({
       detections: z.array(
         z.object({
           id: z.number().int(),
-          cls: z.enum(VEHICLE_CLASSES),
+          cls: classEnum,
           x: z.number(),
           y: z.number(),
           w: z.number().positive(),
@@ -215,11 +218,48 @@ export const PerceptionSchema = z.object({
     .array(
       z.object({
         t: z.number().nonnegative(),
-        approach: z.enum(APPROACHES),
-        cls: z.enum(VEHICLE_CLASSES),
+        approach: approachEnum,
+        cls: classEnum,
         line: z.enum(['upstream', 'stop']),
       }),
     )
+    .optional(),
+  /** Where this came from and how it was made. */
+  meta: z
+    .object({
+      videoId: z.string(),
+      sha256: z.string(),
+      durationS: z.number(),
+      sourceFps: z.number(),
+      processedFps: z.number(),
+      stride: z.number(),
+      width: z.number(),
+      height: z.number(),
+      frameCount: z.number(),
+      model: z.object({ name: z.string(), version: z.string(), sha256: z.string(), device: z.string() }),
+      startedAt: z.string(),
+      finishedAt: z.string(),
+      processingS: z.number(),
+      warnings: z.array(z.string()),
+    })
+    .optional(),
+  /** Vehicles waiting in each queue zone, once per second. `approaches` is PCU, `counts` is vehicles. */
+  queue: z.object({ binS: z.number(), approaches: z.record(approachEnum, z.array(z.number())), counts: z.record(approachEnum, z.array(z.number())) }).optional(),
+  speeds: z.array(z.object({ t: z.number(), approach: approachEnum, cls: classEnum, kmh: z.number() })).optional(),
+  departures: z.array(z.object({ t: z.number(), approach: approachEnum, cls: classEnum, pcu: z.number(), sat: z.boolean() })).optional(),
+  waits: z.array(z.number()).optional(),
+  satFlow: z
+    .object({ perLane: z.number(), startupLost: z.number(), headways: z.array(z.number()), samples: z.number(), isDefault: z.boolean(), startupLostIsDefault: z.boolean().optional() })
+    .optional(),
+  quality: z
+    .object({
+      meanConfidence: z.number(),
+      trackFragmentation: z.number(),
+      lowLight: z.boolean(),
+      cameraMotionPx: z.number(),
+      missedCountRisk: z.enum(['low', 'medium', 'high']),
+      warnings: z.array(z.string()),
+    })
     .optional(),
 });
 export type PerceptionResult = z.infer<typeof PerceptionSchema>;
@@ -288,6 +328,10 @@ export interface DemandEstimate {
   satFlow: { perLane: number; startupLost: number; headways: number[]; samples: number; isDefault: boolean };
   source: 'sample' | 'counts' | 'perception';
   binSeconds: number;
+  /** Notes from the back end, for example when an approach had to use stop-line counts. */
+  warnings?: string[];
+  /** Which side did the arithmetic. Set by the API layer, not by the engines. */
+  computedBy?: 'browser' | 'server';
 }
 
 export type SourceKind = 'sample' | 'counts' | 'perception';

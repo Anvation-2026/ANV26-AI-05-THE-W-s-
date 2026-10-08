@@ -12,7 +12,8 @@ import { useSetup } from '../hooks/useSetup';
 import { useRunner } from '../hooks/useRunner';
 import { useCommands } from '../shell/Layout';
 import { useRunStatus } from '../shell/status';
-import { startExperiment, type Job } from '../engine/workerClient';
+import { api } from '../api';
+import type { Job } from '../engine/workerClient';
 import { METRIC_LABELS } from '../engine/metrics';
 import { downloadText, fmtStat, mmss, toCsv } from '../lib/util';
 import { Footer } from '../shell/Layout';
@@ -125,7 +126,7 @@ export default function Console() {
   const [result, setResult] = useState<ComparisonResult | null>(null);
   useEffect(() => () => job?.cancel(), [job]);
   const runSeeds = async () => {
-    const j = startExperiment({ type: 'compare', setup, kinds: ['observed', 'webster', 'vac', 'signaltwin'], seeds: params.seeds }, (p) => {
+    const j = api.runExperiment({ type: 'compare', setup, kinds: ['observed', 'webster', 'vac', 'signaltwin'], seeds: params.seeds }, (p) => {
       setProg(p);
       setStatus(`Running ${p.done} of ${p.total} seeds`);
     });

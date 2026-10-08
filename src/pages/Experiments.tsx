@@ -4,7 +4,8 @@ import { METRIC_KEYS, type ComparisonResult, type ControllerKind, type Scenario 
 import { SCENARIOS } from '../engine/params';
 import { useApp, type RunRecord } from '../store/app';
 import { useSetup } from '../hooks/useSetup';
-import { startExperiment, type Job } from '../engine/workerClient';
+import { api } from '../api';
+import type { Job } from '../engine/workerClient';
 import type { AblationRow, NoiseRow, ExperimentRequest } from '../engine/experiment';
 import { METRIC_LABELS } from '../engine/metrics';
 import { LineChart, StripPlot, type Series } from '../components/charts';
@@ -55,7 +56,7 @@ export default function Experiments() {
   useEffect(() => () => job?.cancel(), [job]);
 
   const run = async (req: ExperimentRequest, label: string, after: (r: Awaited<Job['promise']>) => void) => {
-    const j = startExperiment(req, (p) => {
+    const j = api.runExperiment(req, (p) => {
       setProg(p);
       setStatus(`${p.label}`);
     });

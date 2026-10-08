@@ -1,9 +1,13 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState, Component, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, Component, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BrandMark, Icon, type IconName } from '../components/Icon';
 import { Button, Dialog, IconButton, ToastHost, toast, useTheme } from '../components/ui';
 import { PatternDefs } from '../components/charts';
 import { useApp, clearAllLocalData } from '../store/app';
+import { getResult } from '../store/results';
+import { startBackendMonitor } from '../api';
+import { BackendBadge, BackendDialog } from '../components/BackendDialog';
+import type { PerceptionResult } from '../contracts';
 import { SAMPLE_JUNCTION, SCENARIOS } from '../engine/params';
 import { useRunStatus } from './status';
 
@@ -83,8 +87,10 @@ function TopBar({ onShortcuts }: { onShortcuts: () => void }) {
   const junction = useApp((s) => s.junction);
   const setJunction = useApp((s) => s.setJunction);
   const [which, setWhich] = useState<'current' | 'sample'>(usingSample ? 'sample' : 'current');
+  const [backendOpen, setBackendOpen] = useState(false);
   useEffect(() => setWhich(usingSample ? 'sample' : 'current'), [usingSample]);
   return (
+    <>
     <header className="topbar">
       <Link to="/" className="brand" aria-label="SignalTwin, go to Home">
         <BrandMark />
@@ -113,9 +119,13 @@ function TopBar({ onShortcuts }: { onShortcuts: () => void }) {
       <span className="badge" title={usingSample ? 'Built-in data. Nothing here came from your video.' : 'Built from the files you provided.'}>
         {usingSample ? 'Sample junction' : 'Your junction'}
       </span>
+      <BackendBadge onClick={() => setBackendOpen(true)} />
       <IconButton icon="keyboard" label="Keyboard shortcuts" onClick={onShortcuts} className="hide-mobile" />
       <IconButton icon="theme" label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'} onClick={toggle} />
     </header>
+    {/* outside the header: the topbar gives its buttons a light text colour that would be unreadable on the dialog */}
+    <BackendDialog open={backendOpen} onClose={() => setBackendOpen(false)} />
+    </>
   );
 }
 
@@ -212,6 +222,17 @@ export function Layout() {
   const isTool = TOOL_ROUTES.some((r) => loc.pathname.startsWith(r));
   const gMode = useRef(0);
   const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    startBackendMonitor();
+    // bring back the analysis result that was saved in IndexedDB before the page was reloaded
+    const st = useApp.getState();
+    if (!st.perception && st.serverVideo?.resultKey && st.perceptionOrigin === 'backend') {
+      void getResult<PerceptionResult>(st.serverVideo.resultKey).then((r) => {
+        if (r && !useApp.getState().perception) useApp.getState().setPerception(r, 'backend');
+      });
+    }
+  }, []);
 
   useEffect(() => {
     document.title = `${titleFor(loc.pathname)} | SignalTwin`;

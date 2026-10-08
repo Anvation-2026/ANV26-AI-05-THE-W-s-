@@ -1,0 +1,22 @@
+# Runs the API with a persistent data volume. The front end is served separately (Vercel, or `npm run dev`).
+# Usage:  cp .env.example .env   then   docker compose up --build
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATA_DIR: /data
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+    volumes:
+      - signaltwin-data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8g
+volumes:
+  signaltwin-data:

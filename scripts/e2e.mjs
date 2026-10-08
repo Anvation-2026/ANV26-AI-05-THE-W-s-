@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', '4174', '--strictPort'], { stdio: 'ignore' });
 await new Promise((r) => setTimeout(r, 2500));
-const browser = await chromium.launch({ channel: 'chrome' });
+const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL ?? 'chrome' });
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] });
 await ctx.addInitScript(() => {
   window.print = () => { window.__printed = true; };
@@ -276,11 +276,11 @@ await step('Theme toggle persists', async () => {
   const kept = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   if (kept !== after) throw new Error('theme not persisted');
 });
-await step('Privacy: delete all local data', async () => {
+await step('Privacy: delete all data', async () => {
   await go('/privacy');
-  await page.getByRole('button', { name: 'Delete all local data' }).click();
+  await page.getByRole('button', { name: 'Delete all data' }).click();
   await page.getByRole('button', { name: 'Delete everything' }).click();
-  await toastHas(/All local data deleted/);
+  await toastHas(/All data deleted/);
 });
 await step('Terms and 404', async () => {
   await go('/terms');

@@ -1,6 +1,6 @@
 import type { DemandProfile, ObservedTiming, Params } from '../contracts';
 import { DEFAULT_OPTIONS, NO_NOISE } from './params';
-import type { SampleCapture } from './capture';
+import type { Capture } from './capture';
 import { Sim } from './sim';
 
 export interface TwinValidation {
@@ -54,7 +54,7 @@ function fold(series: number[], cycle: number): number[] {
  * averaged queue with what the clip showed. The clip is one random day, so the
  * comparison uses the cycle-averaged queue rather than second-by-second noise.
  */
-export function validateTwin(params: Params, cap: SampleCapture, demand: DemandProfile, observed: ObservedTiming, seed = 11, seeds = 6): TwinValidation {
+export function validateTwin(params: Params, cap: Capture, demand: DemandProfile, observed: ObservedTiming, seed = 11, seeds = 6): TwinValidation {
   const horizon = cap.duration;
   const sims: Sim[] = [];
   for (let k = 0; k < seeds; k++) {

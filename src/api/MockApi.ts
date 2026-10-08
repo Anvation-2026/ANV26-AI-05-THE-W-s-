@@ -27,6 +27,9 @@ export const mockApi: SignalTwinApi = {
   async analyseVideo() {
     throw new NotConnectedError('Detecting vehicles in an uploaded video');
   },
+  async deleteServerVideo() {
+    /* nothing is stored on a server in this mode */
+  },
   async estimateDemand(src, junction, params: Params, smoothing, binSeconds): Promise<DemandEstimate> {
     const p = { ...params, smoothing: smoothing ?? params.smoothing, binSeconds: binSeconds ?? params.binSeconds };
     if (src.kind === 'sample') {
@@ -34,7 +37,7 @@ export const mockApi: SignalTwinApi = {
       const binned = binArrivals(cap.arrivals, cap.duration, p.binSeconds);
       const est = estimateDemand(binned, p, p.smoothing);
       const sat = measureSaturation(cap.departures, cap.greenStarts, p);
-      return { ...est, satFlow: sat, source: 'sample', binSeconds: p.binSeconds };
+      return { ...est, satFlow: sat, source: 'sample', binSeconds: p.binSeconds, computedBy: 'browser' };
     }
     if (src.kind === 'counts') {
       const { binned } = binCountsCsv(src.rows, p.binSeconds);
@@ -44,6 +47,7 @@ export const mockApi: SignalTwinApi = {
         satFlow: { perLane: params.satFlowPerLane, startupLost: params.startupLost, headways: [], samples: 0, isDefault: true },
         source: 'counts',
         binSeconds: p.binSeconds,
+        computedBy: 'browser',
       };
     }
     const { binned } = binsFromPerception(src.result, p.binSeconds);
@@ -53,6 +57,7 @@ export const mockApi: SignalTwinApi = {
       satFlow: { perLane: params.satFlowPerLane, startupLost: params.startupLost, headways: [], samples: 0, isDefault: true },
       source: 'perception',
       binSeconds: p.binSeconds,
+      computedBy: 'browser',
     };
   },
   async runSimulation(req: SimRequest): Promise<SimResult> {

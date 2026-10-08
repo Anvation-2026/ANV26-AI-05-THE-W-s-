@@ -4,5 +4,19 @@ shots
 .vercel
 .env
 .env.*
+!.env.example
 *.log
 .DS_Store
+
+# back end
+signaltwin-api/.venv/
+signaltwin-api/data/
+signaltwin-api/models/*.pt
+signaltwin-api/models/*.onnx
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.part
+tmp-e2e/

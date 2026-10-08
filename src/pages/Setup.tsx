@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { APPROACH_NAMES, APPROACHES, JunctionSchema, type Approach, type Geometry, type JunctionConfig, type Point } from '../contracts';
 import { Link } from 'react-router-dom';
 import { GeometryEditor, SampleFrame, type Tool } from '../components/GeometryEditor';
 import { JunctionView } from '../components/JunctionView';
 import { Button, Dialog, EmptyState, FileDrop, IconButton, NumberField, PageHeader, Segmented, SkeletonBlock, Swap, toast, useConfirm } from '../components/ui';
 import { Icon } from '../components/Icon';
+import { AnalysePanel } from '../components/AnalysePanel';
 import { useApp } from '../store/app';
 import { useVideo } from '../store/video';
 import { SAMPLE_JUNCTION, SCENARIOS } from '../engine/params';
@@ -181,7 +182,7 @@ export default function Setup() {
         return setSrcError(`The video is only ${v.duration.toFixed(1)} s long. Use a clip of at least 3 s, ideally several minutes.`);
       }
       const size = { w: v.videoWidth, h: v.videoHeight, duration: v.duration };
-      video.set({ url, name: f.name, size });
+      video.set({ url, name: f.name, size, file: f });
       setDraft({ ...draft, source: 'video', name: f.name.replace(/\.[^.]+$/, ''), videoName: f.name, videoSize: size, geometry: emptyGeometry(), calibration: null });
       setCal([]);
       setDists([0, 0, 0, 0]);
@@ -256,14 +257,17 @@ export default function Setup() {
     toast('Step reset.');
   };
 
-  const save = () => {
+  const buildJunction = (): JunctionConfig => {
     flush();
-    const j: JunctionConfig = {
+    return {
       ...draft,
       id: isSample ? SAMPLE_JUNCTION.id : draft.id === SAMPLE_JUNCTION.id ? `junction-${Date.now()}` : draft.id,
       calibration: cal.length === 4 && dists.every((x) => x > 0) ? { points: cal, distances: dists } : null,
       updatedAt: new Date().toISOString(),
     };
+  };
+  const save = (quiet = false) => {
+    const j = buildJunction();
     setJunction(isSample ? { ...j, geometry: SAMPLE_JUNCTION.geometry, calibration: null } : j, isSample);
     setParams({ yellow: j.observed.yellow, allRed: j.observed.allRed, fourPhase: j.observed.fourPhase });
     try {
@@ -271,7 +275,17 @@ export default function Setup() {
     } catch {
       /* ignore */
     }
-    toast('Junction saved.');
+    if (!quiet) toast('Junction saved.');
+    return j;
+  };
+  /** Called by the Analyse panel: checks the earlier steps, saves the junction and hands it over. */
+  const prepareAnalysis = (): { junction: JunctionConfig } | { reason: string } => {
+    for (const s of [1, 2, 3]) {
+      const r = stepReason(s);
+      if (r) return { reason: `Step ${s + 1}: ${r}` };
+    }
+    if (!draft.name.trim()) return { reason: 'Give the junction a name in this step.' };
+    return { junction: save(true) };
   };
   const exportJson = () => {
     const j = { ...draft, calibration: cal.length === 4 ? { points: cal, distances: dists } : null };
@@ -338,7 +352,7 @@ export default function Setup() {
               <div className="stack">
                 <section className="panel stack" aria-labelledby="src-v">
                   <h2 id="src-v">Video of the junction</h2>
-                  <p className="muted">A fixed camera, one junction, daylight if possible. The video is read in this browser and is not uploaded.</p>
+                  <p className="muted">A fixed camera, one junction, daylight if possible. The video is read in this browser. It is sent to the back end only when you press Analyse video in the last step.</p>
                   <FileDrop accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" label="Drop an MP4 here" hint="MP4, MOV or WebM, up to 800 MB." onFile={onVideo} error={srcError} icon="video" />
                   {loading && <SkeletonBlock lines={2} />}
                   {isVideo && video.url && (
@@ -501,7 +515,8 @@ export default function Setup() {
                 isSample={isSample}
                 timingOk={!timingErr}
                 greens={greens}
-                onSave={save}
+                onSave={() => save()}
+                analyse={isVideo ? <AnalysePanel prepare={prepareAnalysis} /> : null}
               />
             )}
 
@@ -517,7 +532,7 @@ export default function Setup() {
                     Continue
                   </Button>
                 ) : (
-                  <Button variant="primary" onClick={save} disabled={!draft.name.trim()} disabledReason="Give the junction a name first.">
+                  <Button variant="primary" onClick={() => save()} disabled={!draft.name.trim()} disabledReason="Give the junction a name first.">
                     Save junction
                   </Button>
                 )}
@@ -578,7 +593,7 @@ export default function Setup() {
               <section className="panel">
                 <h2>Where this goes</h2>
                 <p className="muted" style={{ marginTop: 8 }}>
-                  Saved junctions stay in this browser. Nothing is sent to a server. Once saved, open <Link to="/perception">Perception</Link> to see what the system sees.
+                  Saved junctions stay in this browser. A video is sent to the back end only when you press Analyse video. Once saved, open <Link to="/perception">Perception</Link> to see what the system sees.
                 </p>
               </section>
             )}
@@ -835,6 +850,7 @@ function ReviewStep({
   timingOk,
   greens,
   onSave,
+  analyse,
 }: {
   draft: JunctionConfig;
   setName: (n: string) => void;
@@ -847,6 +863,7 @@ function ReviewStep({
   timingOk: boolean;
   greens: number[];
   onSave: () => void;
+  analyse?: ReactNode;
 }) {
   const setup = useSetup(SCENARIOS.A);
   const profile = useMemo(() => profileFor(setup), [setup]);
@@ -918,6 +935,7 @@ function ReviewStep({
           <span className="muted">Sample run preview of the current plan on the right.</span>
         </div>
       </section>
+      {analyse}
       <section className="panel-asphalt on-asphalt" style={{ maxWidth: 360 }}>
         <JunctionView runner={runner} simIndex={0} caption="Current plan, as entered" overlays={{ labels: true }} />
       </section>
