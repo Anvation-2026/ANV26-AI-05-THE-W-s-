@@ -50,7 +50,7 @@ class SupabaseStorage(Storage):
 
     @staticmethod
     def _iso(ts: float) -> str:
-        return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
+        return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(ts)) + f".{int((ts % 1) * 1000):03d}Z"  # milliseconds, so short retention periods compare correctly
 
     # ------------------------------------------------------------------ videos
     def _remote_name(self, rec: VideoRecord) -> str:
