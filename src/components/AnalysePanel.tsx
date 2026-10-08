@@ -191,6 +191,15 @@ export function AnalysePanel({ prepare }: { prepare: () => { junction: JunctionC
               <span>{params.lanes}, change on Parameters and analyse again if wrong</span>
             </li>
           </ul>
+          {(up === 0 || q?.missedCountRisk === 'high') && (
+            <div className="error-state" role="alert" data-testid="analyse-poor">
+              <h3>{up === 0 ? 'No vehicles were counted' : 'This analysis is probably incomplete'}</h3>
+              <p>The detector missed most vehicles, so counts, queues and the twin built from them would be wrong. Do not use them for decisions.</p>
+              <p>
+                <strong>What to do:</strong> read the first warning below, use footage that suits the detector, and check that the lines are drawn across the lanes where vehicles drive.
+              </p>
+            </div>
+          )}
           {q && q.warnings.length > 0 && (
             <ul>
               {q.warnings.map((w) => (

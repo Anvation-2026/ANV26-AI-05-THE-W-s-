@@ -241,6 +241,11 @@ export default function Perception() {
                   </tbody>
                 </table>
               </div>
+              {fileMode && shown && !(shown.counts ?? []).length && (
+                <p className="field-error" role="alert" style={{ marginTop: 8 }}>
+                  Nothing was counted. {shown.quality?.warnings[0] ?? 'Check that the lines cross the lanes where vehicles drive and that the video shows traffic.'}
+                </p>
+              )}
               <p className="muted tnum" style={{ marginTop: 8 }}>
                 {fileMode ? (shown ? (isBackend ? 'Counted by the back end on your upstream lines.' : 'From your imported file.') : isBackend ? 'No back end analysis yet. Run Analyse video in the last step of Setup.' : 'No detections for this video yet.') : `${total} vehicles crossed the upstream lines so far. Sample run.`}
               </p>

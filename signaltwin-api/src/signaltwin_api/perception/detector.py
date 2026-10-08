@@ -78,6 +78,10 @@ _NAME_TO_CLASS: dict[str, VehicleClass] = {
     "bus": "bus",
     "truck": "truck",
     "lorry": "truck",
+    "van": "car",  # VisDrone and similar aerial datasets
+    "motor": "twoWheeler",
+    "tricycle": "autoRickshaw",
+    "awning-tricycle": "autoRickshaw",
 }
 
 

@@ -352,7 +352,7 @@ export default function Setup() {
               <div className="stack">
                 <section className="panel stack" aria-labelledby="src-v">
                   <h2 id="src-v">Video of the junction</h2>
-                  <p className="muted">A fixed camera, one junction, daylight if possible. The video is read in this browser. It is sent to the back end only when you press Analyse video in the last step.</p>
+                  <p className="muted">A fixed camera, one junction, daylight if possible, looking along the roads from a pole, bridge or building (not straight down from a drone), at 1280 pixels wide or more. The video is read in this browser. It is sent to the back end only when you press Analyse video in the last step.</p>
                   <FileDrop accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" label="Drop an MP4 here" hint="MP4, MOV or WebM, up to 800 MB." onFile={onVideo} error={srcError} icon="video" />
                   {loading && <SkeletonBlock lines={2} />}
                   {isVideo && video.url && (

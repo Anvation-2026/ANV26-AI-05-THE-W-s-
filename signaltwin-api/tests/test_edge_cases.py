@@ -72,7 +72,7 @@ def test_an_empty_road_gives_zero_counts_and_says_so(tmp_path: Path) -> None:
     assert not res.counts and not res.departures
     q = res.quality
     assert q is not None
-    assert any("No vehicles were counted" in w for w in q.warnings)
+    assert any("Almost no vehicles were detected" in w for w in q.warnings) and q.missedCountRisk == "high"
     assert res.satFlow is not None and res.satFlow.isDefault and res.satFlow.startupLostIsDefault
 
 

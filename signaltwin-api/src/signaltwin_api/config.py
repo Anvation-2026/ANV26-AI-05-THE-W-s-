@@ -1,4 +1,4 @@
-"""Runtime settings, read from environment variables (see .env.example)."""
+﻿"""Runtime settings, read from environment variables (see .env.example)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 API_VERSION = "0.1.0"
-PIPELINE_VERSION = "1"
+PIPELINE_VERSION = "2"
 SIM_VERSION = "1"  # bump when the simulator port changes, so cached experiment results are not reused
 
 

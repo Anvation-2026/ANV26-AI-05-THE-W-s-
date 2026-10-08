@@ -257,6 +257,21 @@ def run_perception(
         q_warnings.append(f"About {fragmentation * 100:.0f}% of tracks stopped inside the picture. Vehicles may be counted late or missed.")
     if mean_conf and mean_conf < 0.45:
         q_warnings.append(f"The detector is not confident (average {mean_conf:.2f}). Check the camera angle and lighting.")
+    det_per_frame = out.n_detections / max(1, n_frames)
+    widths = sorted(d["w"] for f in frames_out[:: max(1, len(frames_out) // 300)] for d in f["detections"])
+    median_w = widths[len(widths) // 2] if widths else 0.0
+    sparse = n_frames >= 20 and det_per_frame < 1.0
+    if sparse:
+        q_warnings.insert(
+            0,
+            f"Almost no vehicles were detected: {det_per_frame:.1f} per frame on average. This usually means the camera looks straight down (a drone view) or the vehicles are very small "
+            "in the picture, and the built-in model was trained on street-level views. Use footage from a pole, bridge or building at an angle, where a car is at least 40 pixels wide, "
+            "or give the server a model trained on overhead footage (MODEL_WEIGHTS_5CLASS).",
+        )
+    elif widths and median_w < 0.02 * probe.width:
+        q_warnings.insert(0, f"Vehicles are very small in the picture (median box {median_w:.0f} px, {100 * median_w / probe.width:.1f}% of the width). Small vehicles are missed first. Use a closer or higher resolution view.")
+    if probe.width < 960:
+        q_warnings.append(f"The video is {probe.width} pixels wide. Detection works best at 1280 pixels or more.")
     if not detector.info.maps_auto_rickshaw:
         q_warnings.append("This detection model has no auto-rickshaw class, so auto-rickshaws are reported as cars or two-wheelers.")
     if hg is None:
@@ -269,14 +284,14 @@ def run_perception(
     for ap in approaches:
         n_up = sum(1 for c in out.counts if c.ap == ap.index and c.line == "upstream")
         n_stop = sum(1 for c in out.counts if c.ap == ap.index and c.line == "stop")
-        if ap.upstream is not None and n_up == 0 and total_s > 120:
+        if ap.upstream is not None and n_up == 0 and total_s > 120 and not sparse:
             q_warnings.append(f"No vehicles were counted on the {ap.name} upstream line. Check that the line is drawn on the road.")
         if ap.stop is not None and n_stop == 0 and total_s > 120:
             q_warnings.append(f"No vehicles were counted on the {ap.name} stop line. Check that the line is drawn on the road.")
     if (sf.is_default) and total_s > 0:
         q_warnings.append("Not enough queue discharge was seen to measure saturation flow, so the default value is used.")
     risk = "low"
-    if low_light or fragmentation > 0.25 or (mean_conf and mean_conf < 0.4) or motion_p95 > 8.0:
+    if sparse or low_light or fragmentation > 0.25 or (mean_conf and mean_conf < 0.4) or motion_p95 > 8.0:
         risk = "high"
     elif fragmentation > 0.10 or (mean_conf and mean_conf < 0.55) or motion_p95 > 3.0 or not detector.info.maps_auto_rickshaw:
         risk = "medium"
