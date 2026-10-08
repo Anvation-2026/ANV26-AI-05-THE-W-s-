@@ -5,6 +5,44 @@ import { Histogram, LineChart, type Series } from './charts';
 import { Badge, Button, EmptyState } from './ui';
 
 /** The sampled picture whose time is nearest to t, or null when the nearest one is more than `tol` seconds away. */
+/**
+ * The detections at time t, with each tracked vehicle's box slid between the two analysed pictures around t.
+ * The analysis keeps about 10 pictures a second and the video plays at 25 or 30, so without this each box would sit still for a few
+ * frames and then jump. A vehicle seen in only one of the two pictures stays where it was seen, for at most `hold` seconds.
+ */
+export function boxesAt(frames: PerceptionResult['frames'], t: number, hold: number): PerceptionResult['frames'][number]['detections'] {
+  if (!frames.length) return [];
+  let lo = 0;
+  let hi = frames.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (frames[mid].t < t) lo = mid + 1;
+    else hi = mid;
+  }
+  const next = frames[lo];
+  if (next.t < t) return t - next.t <= hold ? next.detections : []; // after the last picture
+  if (lo === 0) return next.t - t <= hold ? next.detections : []; // before the first picture
+  const prev = frames[lo - 1];
+  const span = next.t - prev.t;
+  if (span > 2 * hold) {
+    // a gap in the analysis: show the nearer picture only if it is close
+    const [near, d] = t - prev.t <= next.t - t ? [prev, t - prev.t] : [next, next.t - t];
+    return d <= hold ? near.detections : [];
+  }
+  const k = span > 0 ? (t - prev.t) / span : 0;
+  const later = new Map(next.detections.map((d) => [d.id, d]));
+  const out: PerceptionResult['frames'][number]['detections'] = [];
+  for (const a of prev.detections) {
+    const b = later.get(a.id);
+    if (b) {
+      out.push({ ...a, x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, w: a.w + (b.w - a.w) * k, h: a.h + (b.h - a.h) * k, conf: a.conf + (b.conf - a.conf) * k });
+      later.delete(a.id);
+    } else if (k < 0.5) out.push(a); // gone in the next picture: keep it until halfway
+  }
+  if (k >= 0.5) for (const b of later.values()) out.push(b); // new in the next picture: show it from halfway
+  return out;
+}
+
 export function nearestFrame(frames: PerceptionResult['frames'], t: number, tol: number) {
   let lo = 0;
   let hi = frames.length - 1;
@@ -81,7 +119,7 @@ export function VideoPerception({
     );
   }
   const tol = perception ? Math.max(0.3, 1.5 / Math.max(1, perception.fps)) : 0.3;
-  const frame = perception ? nearestFrame(perception.frames, t, tol) : null;
+  const boxes = perception ? boxesAt(perception.frames, t, tol) : [];
   const W = perception?.width ?? ref.current?.videoWidth ?? 1280;
   const H = perception?.height ?? ref.current?.videoHeight ?? 720;
   const stroke = Math.max(1.5, W / 640);
@@ -99,7 +137,7 @@ export function VideoPerception({
             })}
           {layers.counts && APPROACHES.map((a) => [line(geometry.stopLines[a], `s${a}`), line(geometry.upstreamLines[a], `u${a}`, '10 6')])}
           {layers.boxes &&
-            frame?.detections.map((d) => (
+            boxes.map((d) => (
               <g key={d.id}>
                 <rect x={d.x - d.w / 2} y={d.y - d.h / 2} width={d.w} height={d.h} fill="none" stroke="var(--marking)" strokeWidth={stroke} strokeDasharray={d.cls === 'twoWheeler' ? '3 3' : d.cls === 'autoRickshaw' ? '8 4' : d.cls === 'truck' ? '14 4' : undefined} />
                 <text x={d.x - d.w / 2} y={d.y - d.h / 2 - 3} fill="var(--marking)" fontSize={Math.max(10, W / 100)} fontWeight="700">
