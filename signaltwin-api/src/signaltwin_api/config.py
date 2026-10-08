@@ -1,4 +1,4 @@
-﻿"""Runtime settings, read from environment variables (see .env.example)."""
+"""Runtime settings, read from environment variables (see .env.example)."""
 
 from __future__ import annotations
 
