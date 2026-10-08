@@ -13,6 +13,7 @@ from .. import errors
 from ..config import API_VERSION, PIPELINE_VERSION
 from ..demand.service import estimate
 from ..models.contracts import DemandEstimate, DemandEstimateRequest, JunctionConfig
+from ..perception.detector import list_models, model_view
 from .context import AppContext, ctx_of, guard
 
 router = APIRouter(prefix="/v1", tags=["service"])
@@ -60,6 +61,7 @@ async def limits(c: AppContext = Depends(guard)) -> dict[str, Any]:
         "rateLimitPerMinute": s.rate_limit_per_minute,
         "uploadLimitPerHour": s.upload_limit_per_hour,
         "maxJsonKb": s.max_json_kb,
+        "models": [{"name": n, "view": model_view(n)} for n in list_models(s)] if s.detector == "yolo" else [],
     }
 
 

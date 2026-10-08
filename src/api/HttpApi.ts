@@ -270,7 +270,7 @@ export class HttpApi implements SignalTwinApi {
       emit('upload', 1, 'Upload finished');
 
       // 2. job
-      const created = await call<JobView>('/v1/perception/jobs', { ...json({ videoId: video.videoId, junction, params, options: {} }), signal });
+      const created = await call<JobView>('/v1/perception/jobs', { ...json({ videoId: video.videoId, junction, params, options: req.model ? { model: req.model } : {} }), signal });
       jobId = created.jobId;
       let final: FinalJob = { state: created.state, error: created.error, fromCache: created.fromCache };
       if (created.state !== 'done') {

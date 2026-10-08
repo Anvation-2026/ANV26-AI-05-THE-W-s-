@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     min_fps: float = 5.0
 
     model_weights: str = "models/yolo11n.pt"
+    model_dir: Path = Path("models")  # models a client may choose by name; nothing outside this folder can be loaded
     model_weights_5class: str = ""
     detector: str = "yolo"  # yolo | stub | synthetic
     device: str = "auto"

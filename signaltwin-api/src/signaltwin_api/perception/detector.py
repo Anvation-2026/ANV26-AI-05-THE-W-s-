@@ -251,10 +251,35 @@ class SyntheticDetector:
         return None
 
 
+def list_models(settings: Settings) -> dict[str, Path]:
+    """Models a client may choose, by name: every .pt file under the models folder, named by its path without the extension."""
+    root = settings.model_dir
+    if not root.is_dir():
+        return {}
+    return {p.relative_to(root).with_suffix("").as_posix(): p for p in sorted(root.rglob("*.pt"))}
+
+
+def model_view(name: str) -> str:
+    """What kind of camera view a model is meant for. A naming convention: aerial and VisDrone models are for overhead footage."""
+    n = name.lower()
+    return "overhead" if ("aerial" in n or "visdrone" in n or "drone" in n) else "standard"
+
+
+def resolve_model(settings: Settings, name: str | None) -> str | None:
+    """Turns a model name from a request into a file path, or refuses it. Never accepts a path."""
+    if not name or settings.detector != "yolo":
+        return None
+    found = list_models(settings)
+    if name not in found:
+        have = ", ".join(sorted(found)) or "none"
+        raise errors.invalid_request(f"The model {name!r} is not installed on this server. Installed: {have}.", "Choose one of the installed models, or leave the choice empty for the default.")
+    return str(found[name])
+
+
 def make_detector(settings: Settings, weights: str | None = None, confidence: float | None = None) -> Detector:
     kind = settings.detector
     if kind == "synthetic":
         return SyntheticDetector()
     if kind == "stub":
         return ScriptedDetector(lambda t, i: [], name="empty-stub")
-    return YoloDetector(settings, weights=weights, confidence=confidence)
+    return YoloDetector(settings, weights=resolve_model(settings, weights), confidence=confidence)

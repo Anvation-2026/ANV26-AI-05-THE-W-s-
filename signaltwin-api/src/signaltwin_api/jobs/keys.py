@@ -22,7 +22,9 @@ def model_fingerprint(settings: Settings, model_override: str | None) -> str:
     """Identify the detector. For real models this is the weights file hash, so a new model never serves old results."""
     if settings.detector in ("synthetic", "stub"):
         return f"{settings.detector}-v1"
-    path = Path(model_override or settings.model_weights_5class or settings.model_weights)
+    from ..perception.detector import resolve_model
+
+    path = Path(resolve_model(settings, model_override) or settings.model_weights_5class or settings.model_weights)
     try:
         st = path.stat()
     except OSError:

@@ -109,3 +109,22 @@ def test_junction_round_trip(client: TestClient) -> None:
     assert r.status_code == 200
     assert client.get("/v1/junction").json()["name"] == "Test junction"
     assert_problem(client.put("/v1/junction", json={**j, "name": ""}), 422)
+
+
+def test_models_are_chosen_by_name_and_never_by_path(tmp_path: Path, video60) -> None:
+    models = tmp_path / "models"
+    (models / "aerial").mkdir(parents=True)
+    (models / "yolo11n.pt").write_bytes(b"x")
+    (models / "aerial" / "visdrone-test.pt").write_bytes(b"x")
+    (tmp_path / "secret.pt").write_bytes(b"x")
+    s = make_settings(tmp_path, detector="yolo", model_dir=models, model_weights=str(models / "yolo11n.pt"))
+    with TestClient(create_app(s)) as c:
+        listed = {m["name"]: m["view"] for m in c.get("/v1/limits").json()["models"]}
+        assert listed == {"yolo11n": "standard", "aerial/visdrone-test": "overhead"}
+        v = c.post("/v1/videos", content=video60[0].read_bytes(), headers={"Content-Type": "application/octet-stream"}).json()
+        from signaltwin_api.testing import synth
+
+        body = {"videoId": v["videoId"], "junction": synth.junction_json(), "params": {"lanes": 1}}
+        for bad in ("../secret", r"..\secret", str(tmp_path / "secret.pt"), "nope", "secret"):
+            b = assert_problem(c.post("/v1/perception/jobs", json={**body, "options": {"model": bad}}), 422, "invalid_request")
+            assert "not installed" in b["detail"] and b["fix"]

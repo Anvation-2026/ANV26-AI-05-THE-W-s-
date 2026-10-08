@@ -17,6 +17,17 @@ python -m venv .venv
 
 On macOS or Linux replace `.venv\Scripts\` with `.venv/bin/`. Then open http://localhost:8000/docs, or start the front end (`../.env.example` explains `VITE_API_URL`) and look for **Back end connected** in the top bar.
 
+### Drone and overhead footage
+
+The default model was trained on street-level views and finds almost nothing in video that looks straight down. For that, add a model trained on aerial footage to the `models` folder. Anything under `models/` appears in Setup as a choice of **Camera view** (names containing `aerial`, `visdrone` or `drone` are offered as overhead views):
+
+```
+mkdir modelserial
+curl -L -o models/aerial/visdrone-yolo11s.pt https://huggingface.co/dronefreak/visdrone-yolo11s/resolve/main/best.pt
+```
+
+That model (AGPL-3.0, trained on the VisDrone dataset, whose own terms are for research; check them before commercial use) found 54 vehicles in a frame where the default found 2. A request can only name a model that exists in `models/`; it can never give a file path.
+
 No model yet? `DETECTOR=synthetic` runs the pipeline with a simple colour-blob detector, which is what the tests use. It only finds the coloured rectangles in the generated test videos (`python -m signaltwin_api.testing.synth out.mp4 --junction j.json`).
 
 ## Settings

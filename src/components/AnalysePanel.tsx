@@ -45,6 +45,7 @@ export function AnalysePanel({ prepare }: { prepare: () => { junction: JunctionC
   const [err, setErr] = useState<Friendly | null>(null);
   const [consent, setConsent] = useState(false);
   const [cached, setCached] = useState(false);
+  const [model, setModel] = useState('');
   const ctrl = useRef<AbortController | null>(null);
 
   const file = video.file;
@@ -87,6 +88,7 @@ export function AnalysePanel({ prepare }: { prepare: () => { junction: JunctionC
         params,
         signal: c.signal,
         onProgress: setProg,
+        model: model || undefined,
         knownVideoId: serverVideo?.fileKey === key ? serverVideo.videoId : undefined,
       });
       const resultKey = `result-${out.jobId}`;
@@ -130,6 +132,25 @@ export function AnalysePanel({ prepare }: { prepare: () => { junction: JunctionC
         Sends your video to the back end, which finds and tracks vehicles, counts them at your lines and measures queues, waits, speeds and saturation flow.
         {limits ? ` Up to ${limits.maxUploadMb} MB and ${Math.round(limits.maxDurationS / 60)} minutes. Kept for ${limits.retentionHours} hours, or until you delete it.` : ''}
       </p>
+
+      {(limits?.models?.length ?? 0) > 1 && phase !== 'running' && (
+        <div className="stack-sm" style={{ maxWidth: 420 }}>
+          <label className="field-label" htmlFor="an-model">
+            Camera view
+          </label>
+          <select id="an-model" className="input" value={model} onChange={(e) => setModel(e.target.value)}>
+            <option value="">Street level or from a pole or bridge (default)</option>
+            {limits?.models
+              ?.filter((m) => m.view === 'overhead')
+              .map((m) => (
+                <option key={m.name} value={m.name}>
+                  Looking straight down, drone ({m.name})
+                </option>
+              ))}
+          </select>
+          <span className="muted">Choose the one that matches your video. A model used on the wrong kind of view misses most vehicles.</span>
+        </div>
+      )}
 
       {phase === 'running' && prog && (
         <div className="stack-sm" role="status" aria-live="polite" data-testid="analyse-progress">

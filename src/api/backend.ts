@@ -27,6 +27,8 @@ export interface BackendLimits {
   minDurationS: number;
   maxWidth: number;
   acceptedFormats: string[];
+  /** Detection models installed on the server. `view` says what camera angle each is for. */
+  models?: { name: string; view: 'standard' | 'overhead' }[];
   retentionHours: number;
   queueMax: number;
 }

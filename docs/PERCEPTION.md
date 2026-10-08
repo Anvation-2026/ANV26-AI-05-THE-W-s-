@@ -44,6 +44,7 @@ The same video, drawing, options and model give the same result, apart from the 
 
 ## Known limits
 
+- The default model fails on overhead (drone) footage: on one 596 by 336 clip it found 0.3 vehicles per frame where about 40 were visible. A VisDrone-trained model found 42 per frame on the same clip (`models/aerial/`, chosen under Camera view in Setup). Pick the model that matches the camera. The report warns when almost nothing is detected.
 - Counts depend on the detector. This repository measures the logic against synthetic truth, not the model on real roads; see `MEASUREMENTS.md`.
 - Tracking degrades below about 8 processed frames per second, most for small fast vehicles.
 - A moving camera, heavy rain, night video and dense two-wheeler traffic are the usual causes of missed counts.

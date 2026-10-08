@@ -30,6 +30,8 @@ export interface AnalyseRequest {
   params: Params;
   signal: AbortSignal;
   onProgress: (p: AnalyseProgress) => void;
+  /** Name of an installed detection model. Empty means the server default. */
+  model?: string;
   /** A video id from an earlier upload of this same file, so it is not sent again. */
   knownVideoId?: string;
 }

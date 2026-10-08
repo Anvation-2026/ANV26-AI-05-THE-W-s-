@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from .. import errors
 from ..errors import PROBLEM_JSON
 from ..models.contracts import PerceptionJobRequest
+from ..perception.detector import resolve_model
 from ..perception.geometry import validate_junction
 from ..storage.base import TERMINAL_STATES, JobRecord
 from .context import AppContext, guard
@@ -60,6 +61,7 @@ async def create_job(req: PerceptionJobRequest, request: Request, response: Resp
     video = c.storage.get_video(req.videoId)
     if video is None:
         raise errors.video_not_found(req.videoId)
+    resolve_model(c.settings, req.options.model)  # an unknown model name is refused now, not after the upload is queued
     # reject an unusable drawing now, in plain words, instead of after minutes of work
     await run_in_threadpool(validate_junction, req.junction, video.width, video.height)
     cid = getattr(request.state, "correlation_id", None)
