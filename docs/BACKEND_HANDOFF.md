@@ -26,6 +26,12 @@ The browser engine is the source of truth. The Python port in `signaltwin_api/si
 
 Rules that both sides share: vehicle classes, PCU and people defaults (`src/engine/params.ts`), phase layout (N, S, E, W are 0 to 3; two phases are NS and EW), the four controllers, common random numbers (arrivals depend only on the seed and the demand profile), and the metrics and statistics. The random generator and the number formatting of the decision log are ported exactly (`sim/jsnum.py`), including `Math.round` and `toFixed` behaviour.
 
+## Clips that are not four-way junctions
+
+Setup needs a stop line and an upstream line on at least two approaches, and calibration is optional (without it speeds are not measured). The letters N, S, E and W only name roads and put them in the two signal phases (N and S together, E and W together). `scripts/e2e-clips.mjs` takes a folder of real clips through upload, junction import, analysis, Perception, Demand, the simulation comparison and Twin in a real browser.
+
+The fairness guard in both VAC and SignalTwin ignores an approach that has nobody waiting or about to arrive, so a four-phase junction with one busy road is not forced to give green to empty roads (it was: 593 s average delay against 251 s once fixed, on one clip).
+
 ## Privacy
 
 Videos are uploaded only when the person presses Analyse video and agrees to the one-time notice. The Privacy page states what is sent, what the server does, how long it is kept (`RETENTION_HOURS`), and has Delete my video and results. If you host the back end, update that page to match your storage and backups.

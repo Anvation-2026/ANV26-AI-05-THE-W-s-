@@ -484,6 +484,8 @@ class VacController(Controller):
             for ap in range(4):
                 if ap in cur_aps:
                     continue
+                if view.q_count[ap] == 0 and view.arr_soon[ap] == 0:
+                    continue  # nobody is waiting or about to arrive there: forcing a green would only waste time
                 if view.red[ap] > worst_red:
                     worst_red = view.red[ap]
                     worst = ap
@@ -626,6 +628,8 @@ class SignalTwinController(Controller):
             for ap in range(4):
                 if ap in cur_aps:
                     continue
+                if view.q_count[ap] == 0 and view.arr_soon[ap] == 0:
+                    continue  # nobody is waiting or about to arrive there: forcing a green would only waste time
                 if view.red[ap] > worst_red:
                     worst_red = view.red[ap]
                     worst = ap

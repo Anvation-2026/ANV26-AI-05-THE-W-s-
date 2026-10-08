@@ -40,6 +40,7 @@ export function AnalysePanel({ prepare }: { prepare: () => { junction: JunctionC
   const origin = useApp((s) => s.perceptionOrigin);
   const setPerception = useApp((s) => s.setPerception);
   const setServerVideo = useApp((s) => s.setServerVideo);
+  const setParams = useApp((s) => s.setParams);
   const [phase, setPhase] = useState<'idle' | 'running' | 'error' | 'done'>(perception && origin === 'backend' ? 'done' : 'idle');
   const [prog, setProg] = useState<AnalyseProgress | null>(null);
   const [err, setErr] = useState<Friendly | null>(null);
@@ -96,6 +97,9 @@ export function AnalysePanel({ prepare }: { prepare: () => { junction: JunctionC
       if (!stored) toast('The result is too large for this browser to keep. It stays in memory until you close the tab.', 'error');
       setServerVideo({ videoId: out.videoId, filename: file.name, size: file.size, fileKey: key, uploadedAt: new Date().toISOString(), jobId: out.jobId, resultKey: stored ? resultKey : undefined });
       setPerception(out.result, 'backend');
+      // a short clip gives few demand bins at the default size, so shrink them to give the profile some shape
+      const seconds = out.result.meta?.durationS ?? 0;
+      if (seconds > 0 && seconds < 120) setParams({ binSeconds: seconds < 45 ? 5 : 10 });
       setCached(out.fromCache);
       setPhase('done');
       toast(out.fromCache ? 'Reused an earlier analysis of this video.' : 'Analysis finished.');
@@ -140,13 +144,11 @@ export function AnalysePanel({ prepare }: { prepare: () => { junction: JunctionC
           </label>
           <select id="an-model" className="input" value={model} onChange={(e) => setModel(e.target.value)}>
             <option value="">Street level or from a pole or bridge (default)</option>
-            {limits?.models
-              ?.filter((m) => m.view === 'overhead')
-              .map((m) => (
-                <option key={m.name} value={m.name}>
-                  Looking straight down, drone ({m.name})
-                </option>
-              ))}
+            {limits?.models?.map((m) => (
+              <option key={m.name} value={m.name}>
+                {m.view === 'overhead' ? `Looking straight down, drone (${m.name})` : `Street level or from a pole or bridge (${m.name})`}
+              </option>
+            ))}
           </select>
           <span className="muted">Choose the one that matches your video. A model used on the wrong kind of view misses most vehicles.</span>
         </div>

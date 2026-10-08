@@ -144,13 +144,19 @@ export default function Setup() {
     }
     if (s === 1) {
       if (isCounts) return null;
-      if (missingStop.length) return `Draw the stop line for ${missingStop.map((a) => APPROACH_NAMES[a]).join(', ')}.`;
-      if (missingUp.length) return `Draw the upstream line for ${missingUp.map((a) => APPROACH_NAMES[a]).join(', ')}.`;
+      // two roads are enough: a clip does not have to show a four-way junction
+      const complete = APPROACHES.filter((a) => draft.geometry.stopLines[a] && draft.geometry.upstreamLines[a]);
+      if (complete.length < 2) {
+        const need = APPROACHES.filter((a) => !complete.includes(a));
+        const todo = need.filter((a) => draft.geometry.stopLines[a] || draft.geometry.upstreamLines[a]).concat(need.filter((a) => !draft.geometry.stopLines[a] && !draft.geometry.upstreamLines[a])).slice(0, 3 - complete.length);
+        return `Draw a stop line and an upstream line for at least two approaches. Still needed: ${todo.map((a) => `${APPROACH_NAMES[a]} (${[!draft.geometry.stopLines[a] && 'stop line', !draft.geometry.upstreamLines[a] && 'upstream line'].filter(Boolean).join(' and ')})`).join(' or ')}.`;
+      }
       return null;
     }
     if (s === 2) {
       if (isCounts) return null;
-      if (cal.length < 4) return `Place ${4 - cal.length} more calibration point${4 - cal.length === 1 ? '' : 's'} on the road.`;
+      if (cal.length === 0) return null; // calibration is optional: without it speeds are not measured
+      if (cal.length < 4) return `Place ${4 - cal.length} more calibration point${4 - cal.length === 1 ? '' : 's'} on the road, or clear the points to skip calibration.`;
       if (dists.some((x) => !(x > 0))) return 'Enter the real distance in metres for all four sides.';
       if (collinear) return 'The points are nearly in a straight line. Move them to the corners of a rectangle on the road.';
       return null;
@@ -295,7 +301,7 @@ export default function Setup() {
   const importJson = async (f: File) => {
     setImportErr(null);
     try {
-      const parsed = JunctionSchema.safeParse(JSON.parse(await f.text()));
+      const parsed = JunctionSchema.safeParse(JSON.parse(await f.text(), (k, v) => (v === null && k !== 'calibration' ? undefined : v)))  // files from other tools may write null for a field that is simply absent;
       if (!parsed.success) {
         const i = parsed.error.issues[0];
         return setImportErr(`${i.path.join('.') || 'file'}: ${i.message}. Export a junction from this page and use that file.`);
@@ -352,7 +358,7 @@ export default function Setup() {
               <div className="stack">
                 <section className="panel stack" aria-labelledby="src-v">
                   <h2 id="src-v">Video of the junction</h2>
-                  <p className="muted">A fixed camera, one junction, daylight if possible, looking along the roads from a pole, bridge or building (not straight down from a drone), at 1280 pixels wide or more. The video is read in this browser. It is sent to the back end only when you press Analyse video in the last step.</p>
+                  <p className="muted">A fixed camera, one junction, daylight if possible, looking along the roads from a pole, bridge or building, at 1280 pixels wide or more. A drone looking straight down also works with the Camera view option when you analyse. If the camera moves, draw on the first frame of the video (time 0): the counting follows the camera relative to that frame. The video is read in this browser. It is sent to the back end only when you press Analyse video in the last step.</p>
                   <FileDrop accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" label="Drop an MP4 here" hint="MP4, MOV or WebM, up to 800 MB." onFile={onVideo} error={srcError} icon="video" />
                   {loading && <SkeletonBlock lines={2} />}
                   {isVideo && video.url && (
@@ -510,6 +516,7 @@ export default function Setup() {
                 counts={cg}
                 missing={{ stop: missingStop.length, up: missingUp.length, zone: missingZone.length }}
                 calOk={calOk}
+                calSkipped={cal.length === 0}
                 rms={fit?.rms}
                 isCounts={isCounts}
                 isSample={isSample}
@@ -556,11 +563,11 @@ export default function Setup() {
                 <ul className="status-list" style={{ marginTop: 8 }}>
                   <li>
                     <span>Stop lines</span>
-                    <span className={cg.stop === 4 ? 'status-ok' : 'status-miss'}>{cg.stop} of 4</span>
+                    <span className={cg.stop >= 2 ? 'status-ok' : 'status-miss'}>{cg.stop} of 4, two needed</span>
                   </li>
                   <li>
                     <span>Upstream lines</span>
-                    <span className={cg.up === 4 ? 'status-ok' : 'status-miss'}>{cg.up} of 4</span>
+                    <span className={cg.up >= 2 ? 'status-ok' : 'status-miss'}>{cg.up} of 4, two needed</span>
                   </li>
                   <li>
                     <span>Queue zones</span>
@@ -844,6 +851,7 @@ function ReviewStep({
   counts,
   missing,
   calOk,
+  calSkipped,
   rms,
   isCounts,
   isSample,
@@ -857,6 +865,7 @@ function ReviewStep({
   counts: { stop: number; up: number; zone: number };
   missing: { stop: number; up: number; zone: number };
   calOk: boolean;
+  calSkipped: boolean;
   rms?: number;
   isCounts: boolean;
   isSample: boolean;
@@ -922,10 +931,10 @@ function ReviewStep({
         <h3>Checklist</h3>
         <ul className="status-list">
           {item('Source', 'Complete')}
-          {item('Stop lines', geo ? 'Not needed' : missing.stop === 0 ? 'Complete' : 'Missing', geo ? undefined : `${counts.stop} of 4`)}
-          {item('Upstream lines', geo ? 'Not needed' : missing.up === 0 ? 'Complete' : 'Missing', geo ? undefined : `${counts.up} of 4`)}
+          {item('Stop lines', geo ? 'Not needed' : 4 - missing.stop >= 2 ? 'Complete' : 'Missing', geo ? undefined : `${counts.stop} of 4, two needed`)}
+          {item('Upstream lines', geo ? 'Not needed' : 4 - missing.up >= 2 ? 'Complete' : 'Missing', geo ? undefined : `${counts.up} of 4, two needed`)}
           {item('Queue zones', geo ? 'Not needed' : missing.zone === 0 ? 'Complete' : 'Needs attention', geo ? undefined : `${counts.zone} of 4, optional`)}
-          {item('Calibration', isCounts ? 'Not needed' : calOk ? 'Complete' : 'Needs attention', rms !== undefined ? `fit error ${rms.toFixed(2)} m` : undefined)}
+          {item('Calibration', isCounts ? 'Not needed' : calOk ? 'Complete' : calSkipped ? 'Not needed' : 'Needs attention', rms !== undefined ? `fit error ${rms.toFixed(2)} m` : calSkipped ? 'skipped, so speeds are not measured' : undefined)}
           {item('Observed timing', timingOk ? 'Complete' : 'Needs attention')}
         </ul>
         <div className="row">

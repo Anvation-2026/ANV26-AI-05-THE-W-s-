@@ -10,7 +10,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 API_VERSION = "0.1.0"
-PIPELINE_VERSION = "2"
+PIPELINE_VERSION = "3"
 SIM_VERSION = "1"  # bump when the simulator port changes, so cached experiment results are not reused
 
 

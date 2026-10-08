@@ -9,6 +9,10 @@ Every rule here has a test in `signaltwin-api/tests/test_analysis.py` against sy
 - At least two approaches need a stop line and a direction. Otherwise the job is refused (`geometry_incomplete`) and the message names what is missing. Approaches drawn only partly are left out, with a note in the quality warnings.
 - Calibration is four points that are the corners of a real rectangle on the road, with the four side lengths in metres. It is refused if two points coincide, three lie on a line, the order crosses over, a distance is not positive, or opposite sides differ by more than 15 percent. The pixel-to-metre map is a homography.
 
+## Moving cameras
+
+Corners of the picture are tracked from frame to frame with optical flow, ignoring areas where vehicles were found. The median movement is the camera's. Detections are shifted back by it before tracking and counting, so lines drawn on the **first frame** keep their place on a handheld or shaking camera, and parked vehicles do not look like they move. Boxes drawn on the video go back to where the vehicles are in the picture. It follows sideways and vertical movement only (not zoom or tilt), and small errors add up slowly over a long clip. On a synthetic clip shaken by 14 px it matched the steady result (waits 32 against 31 true; without it, zero) and the tracks stopped splitting (57 for 57 vehicles, against 74). Turn it off with the `stabilise` option. A camera that moves a lot is still reported, because following it is not perfect.
+
 ## Tracking
 
 Vehicles are found by the detector (YOLO) and followed with ByteTrack. Boxes are widened by a factor of 1.8 for matching only, so small fast boxes still overlap between frames; the reported boxes are the original ones. A track's class is the confidence-weighted vote over its life, and counts use the final class.

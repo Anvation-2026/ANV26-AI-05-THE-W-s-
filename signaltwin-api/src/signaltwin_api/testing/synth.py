@@ -372,7 +372,7 @@ def _background() -> np.ndarray:
 
 
 def write_video(
-    truth: GroundTruth, path: Path, *, noise_sigma: float = 0.0, codec: str = "libx264", crf: int = 12, brightness: float = 1.0, drop_every: int = 0, blank: bool = False
+    truth: GroundTruth, path: Path, *, noise_sigma: float = 0.0, codec: str = "libx264", crf: int = 12, brightness: float = 1.0, drop_every: int = 0, blank: bool = False, shake_px: float = 0.0
 ) -> str:
     """Render the truth to a video file with PyAV. Returns the codec actually used.
 
@@ -404,6 +404,10 @@ def write_video(
             for v in [] if blank else fr:
                 x1, y1, x2, y2 = v["box"]
                 cv2.rectangle(img, (int(round(x1)), int(round(y1))), (int(round(x2)) - 1, int(round(y2)) - 1), SYNTH_COLOURS[v["cls"]], -1)
+            if shake_px:
+                t = index / fps
+                m = np.array([[1, 0, shake_px * math.sin(2 * math.pi * t / 3.1)], [0, 1, shake_px * math.cos(2 * math.pi * t / 2.3)]], dtype=np.float32)
+                img = np.asarray(cv2.warpAffine(img, m, (W, H), borderMode=cv2.BORDER_REPLICATE), dtype=np.uint8)
             if brightness != 1.0:
                 img = np.clip(img.astype(np.float32) * brightness, 0, 255).astype(np.uint8)
             if noise_sigma > 0:

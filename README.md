@@ -31,7 +31,7 @@ The top bar then says Back end connected. See `signaltwin-api/README.md` for the
 ## Checks
 
 ```
-npm test             # 28 engine tests (Vitest)
+npm test             # 30 engine tests (Vitest)
 npm run e2e          # 26 interaction steps across every page (Playwright, needs Chrome)
 npm run axe          # accessibility scan of 14 routes in light and dark
 npm run e2e:backend  # upload, analysis, Perception, Demand, Twin, cancel and delete against the real back end

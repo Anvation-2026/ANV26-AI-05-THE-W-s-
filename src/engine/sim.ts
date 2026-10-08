@@ -565,6 +565,7 @@ class VacController implements Controller {
       let worstRed = -1;
       for (let ap = 0; ap < 4; ap++) {
         if (curAps.includes(ap)) continue;
+        if (view.qCount[ap] === 0 && view.arrSoon[ap] === 0) continue; // nobody is waiting or about to arrive there: forcing a green would only waste time
         if (view.red[ap] > worstRed) {
           worstRed = view.red[ap];
           worst = ap;
@@ -727,6 +728,7 @@ class SignalTwinController implements Controller {
       let worstRed = -1;
       for (let ap = 0; ap < 4; ap++) {
         if (curAps.includes(ap)) continue;
+        if (view.qCount[ap] === 0 && view.arrSoon[ap] === 0) continue; // nobody is waiting or about to arrive there: forcing a green would only waste time
         if (view.red[ap] > worstRed) {
           worstRed = view.red[ap];
           worst = ap;

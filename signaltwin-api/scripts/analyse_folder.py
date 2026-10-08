@@ -46,33 +46,34 @@ def junction(name: str, w: int, h: int, d: float, stops: dict, ups: dict, zones:
     }
 
 
-# N heads down the picture, S up it, E left, W right, whatever the compass says: the names only label the approaches.
+# Lines are drawn on the FIRST frame of each clip, because the pipeline follows camera movement relative to it.
+# The letters N, S, E and W only label separate roads and put them in the two signal phases (N and S together, E and W together).
 CLIPS: dict[str, dict[str, Any]] = {
     "bangalore": {
         "match": "bangalore", "model": "yolo11m", "label": "Bangalore flyover, elevated view of a congested road",
         "junction": junction(
-            "bangalore", 898, 506, 16,
-            {"N": line((450, 330), (898, 330)), "S": line((0, 330), (300, 330))},
-            {"N": line((480, 200), (800, 200)), "S": line((80, 220), (300, 220))},
-            {"N": zone((455, 205), (800, 205), (898, 325), (450, 325)), "S": zone((80, 225), (300, 225), (300, 325), (0, 325))},
+            "Bangalore flyover", 898, 506, 16,
+            {"N": line((450, 360), (898, 360)), "E": line((0, 230), (310, 230))},  # the left road carries traffic away from the camera, up the picture
+            {"N": line((470, 200), (880, 200)), "E": line((0, 430), (300, 430))},
+            {"N": zone((455, 205), (880, 205), (898, 355), (450, 355)), "E": zone((0, 235), (310, 235), (300, 425), (0, 425))},
         ),
     },
     "delhi": {
         "match": "delhi", "model": "yolo11m", "label": "Delhi highway, elevated view, two carriageways",
         "junction": junction(
-            "delhi", 898, 506, 6,
-            {"N": line((560, 340), (850, 340)), "S": line((110, 150), (380, 150))},
-            {"N": line((480, 150), (690, 150)), "S": line((30, 350), (440, 350))},
-            {"N": zone((485, 155), (690, 155), (850, 335), (560, 335)), "S": zone((40, 345), (440, 345), (375, 155), (115, 155))},
+            "Delhi highway", 898, 506, 6,
+            {"N": line((520, 350), (830, 350)), "E": line((100, 160), (380, 160))},
+            {"N": line((440, 150), (700, 150)), "E": line((0, 380), (440, 380))},
+            {"N": zone((445, 155), (700, 155), (830, 345), (520, 345)), "E": zone((10, 375), (435, 375), (375, 165), (105, 165))},
         ),
     },
     "timelapse": {
         "match": "time-lapse", "model": "aerial/visdrone-yolo11s", "label": "Time-lapse drone view of a large multi-lane junction",
         "junction": junction(
-            "timelapse", 596, 336, 13,
-            {"N": line((200, 125), (250, 125)), "S": line((290, 255), (335, 255))},
-            {"N": line((175, 25), (245, 25)), "S": line((295, 325), (345, 325))},
-            {"N": zone((180, 30), (245, 30), (250, 120), (200, 120)), "S": zone((295, 320), (345, 320), (335, 260), (290, 260))},
+            "Time-lapse junction", 596, 336, 13,
+            {"N": line((205, 115), (255, 115)), "E": line((355, 235), (420, 235))},
+            {"N": line((200, 20), (255, 20)), "E": line((355, 325), (415, 325))},
+            {"N": zone((205, 25), (255, 25), (255, 110), (205, 110)), "E": zone((355, 320), (415, 320), (420, 240), (355, 240))},
         ),
     },
     "topdown": {"match": "top-down", "model": "aerial/visdrone-yolo11s", "label": "Top-down drone view of an intersection", "junction": None},
@@ -144,6 +145,10 @@ def main() -> None:
             continue
         video = files[0]
         j = spec["junction"] or saved_junction("traffic")
+        j = {**j, "name": {"topdown": "Top-down junction"}.get(key, j["name"]), "videoName": video.name}
+        j = {k: v for k, v in j.items() if v is not None or k == "calibration"}  # absent, not null, for the importer
+        (folder / "junctions").mkdir(exist_ok=True)
+        (folder / "junctions" / f"{key}.json").write_text(json.dumps(j, indent=2), encoding="utf-8")
         weights = ROOT / "models" / f"{spec['model']}.pt"
         s = Settings(model_weights=str(weights), device="cpu", detector="yolo", _env_file=None)  # type: ignore[call-arg]
         info = probe(video, s)

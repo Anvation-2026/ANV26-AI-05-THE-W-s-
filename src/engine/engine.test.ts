@@ -290,3 +290,24 @@ describe('vehicle-actuated control and queue clearance', () => {
     expect(off.avgDelayVeh).toBeGreaterThan(on.avgDelayVeh * 1.5);
   });
 });
+describe('the fairness guard and roads with nobody waiting', () => {
+  // four phases, traffic on one road only, as in a clip that shows a single busy approach
+  const lonely = (): RunSetup => {
+    const p = { ...DEFAULT_PARAMS, horizon: 900, fourPhase: true };
+    const base = baseProfile(p, p.horizon);
+    const rates = base.rates.map((r, ap) => r.map((v) => (ap === 1 ? v * 2.2 : 0)));
+    return { params: p, options: DEFAULT_OPTIONS, baseDemand: { ...base, rates }, scenario: { ...SCENARIOS.A, targetY: 0.7 }, observed: { ...SAMPLE_JUNCTION.observed, fourPhase: true, greens: [30, 30, 30, 30] } };
+  };
+  it('does not force a green onto a road that has no vehicles', () => {
+    const sim = makeSim(lonely(), 'signaltwin', 3).run();
+    const forced = sim.decisions.filter((d) => d.rule === 'fairness');
+    expect(forced).toHaveLength(0);
+  });
+  it('lets SignalTwin and VAC serve the busy road at least as well as the fixed plans', () => {
+    const s = lonely();
+    const d = (k: 'observed' | 'webster' | 'vac' | 'signaltwin') => runOne(s, k, 3).avgDelayVeh;
+    expect(d('signaltwin')).toBeLessThan(d('observed'));
+    expect(d('signaltwin')).toBeLessThan(d('webster') * 1.25);
+    expect(d('vac')).toBeLessThan(d('observed'));
+  });
+});

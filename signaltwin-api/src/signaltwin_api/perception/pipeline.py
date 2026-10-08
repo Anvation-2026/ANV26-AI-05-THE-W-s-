@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import math
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -30,8 +29,9 @@ from ..models.contracts import (
 from ..video.decode import DecodeStats, iter_frames, processing_scale
 from ..video.probe import ProbeInfo
 from .analysis import Analyzer, green_starts_from_onsets
-from .detector import Detector
+from .detector import Detector, RawDet
 from .geometry import geometry_notes, validate_junction
+from .stabilise import CameraTracker
 from .tracker import Tracker
 
 log = logging.getLogger("signaltwin.pipeline")
@@ -80,14 +80,6 @@ def _luma(img: np.ndarray) -> float:
     return float(cv2.cvtColor(small, cv2.COLOR_BGR2GRAY).mean())
 
 
-def _gray_small(img: np.ndarray) -> np.ndarray:
-    h, w = img.shape[:2]
-    width = 320
-    height = max(2, int(round(h * width / w)))
-    g = cv2.cvtColor(cv2.resize(img, (width, height), interpolation=cv2.INTER_AREA), cv2.COLOR_BGR2GRAY)
-    return np.asarray(g, dtype=np.float32)
-
-
 def run_perception(
     video_path: Path,
     video_id: str,
@@ -122,9 +114,8 @@ def run_perception(
     next_sample = options.startS
     luma_sum = 0.0
     luma_n = 0
-    prev_gray: np.ndarray | None = None
-    prev_gray_t = -1e9
-    shifts: list[float] = []
+    camera = CameraTracker(options.stabilise)
+    prev_boxes: list[tuple[float, float, float, float]] = []
     inv = 1.0 / scale
     last_report = time.time()
     n_frames = 0
@@ -160,17 +151,19 @@ def run_perception(
         n_frames += 1
         luma_sum += _luma(fr.image)
         luma_n += 1
-        if fr.t - prev_gray_t >= 1.0:
-            g = _gray_small(fr.image)
-            if prev_gray is not None:
-                (dx, dy), _ = cv2.phaseCorrelate(prev_gray, g)
-                shifts.append(math.hypot(dx, dy) * (fr.image.shape[1] / 320.0) * inv)
-            prev_gray, prev_gray_t = g, fr.t
+        cam_x, cam_y = camera.update(fr.image, prev_boxes)  # how far the picture has moved from the first frame, in processing pixels
         dets = detector.detect(fr.image, fr.t, fr.index)
+        if cam_x or cam_y:
+            # track and count in the first frame's coordinates, so a shaking camera does not make parked vehicles look like they move
+            dets = [RawDet(d.x1 - cam_x, d.y1 - cam_y, d.x2 - cam_x, d.y2 - cam_y, d.conf, d.cls) for d in dets]
         tracked = tracker.update(dets)
-        # boxes back to original pixels: geometry is drawn in that space
-        scaled = [type(t)(t.id, t.x1 * inv, t.y1 * inv, t.x2 * inv, t.y2 * inv, t.conf, t.cls) for t in tracked] if scale < 0.999 else tracked
-        analyzer.update(fr.t, scaled)
+        prev_boxes = [(t.x1 + cam_x, t.y1 + cam_y, t.x2 + cam_x, t.y2 + cam_y) for t in tracked]  # where they are in the video itself
+        # to pixels of the original frame: geometry is drawn in that space
+        still = [type(t)(t.id, t.x1 * inv, t.y1 * inv, t.x2 * inv, t.y2 * inv, t.conf, t.cls) for t in tracked] if scale < 0.999 else tracked
+        analyzer.update(fr.t, still)
+        # the boxes drawn on the video go back to where the vehicles are in the picture
+        ox, oy = cam_x * inv, cam_y * inv
+        scaled = [type(t)(t.id, t.x1 + ox, t.y1 + oy, t.x2 + ox, t.y2 + oy, t.conf, t.cls) for t in still] if (ox or oy) else still
         if fr.t + 1e-9 >= next_sample:
             frames_out.append(
                 {
@@ -236,7 +229,7 @@ def run_perception(
     # Quality
     mean_luma = luma_sum / max(1, luma_n)
     low_light = mean_luma < 60.0
-    motion_p95 = float(np.percentile(shifts, 95)) if shifts else 0.0
+    motion_p95 = camera.p95() * inv
     q_warnings: list[str] = []
     ended = [st for st in out.tracks.values() if st.n_obs >= 3]
     border_x, border_y = 0.05 * probe.width, 0.05 * probe.height
@@ -252,7 +245,10 @@ def run_perception(
     if low_light:
         q_warnings.append("The video is dark. Vehicles may be missed, mostly two-wheelers.")
     if motion_p95 > 3.0:
-        q_warnings.append(f"The camera moves by about {motion_p95:.1f} pixels between seconds. Lines may drift off the road.")
+        q_warnings.append(
+            f"The camera moves by up to {motion_p95:.1f} pixels. "
+            + ("The counting follows it, but a fixed camera gives better results." if options.stabilise else "Stabilisation is off, so the lines may drift off the road.")
+        )
     if fragmentation > 0.15:
         q_warnings.append(f"About {fragmentation * 100:.0f}% of tracks stopped inside the picture. Vehicles may be counted late or missed.")
     if mean_conf and mean_conf < 0.45:
@@ -291,7 +287,7 @@ def run_perception(
     if (sf.is_default) and total_s > 0:
         q_warnings.append("Not enough queue discharge was seen to measure saturation flow, so the default value is used.")
     risk = "low"
-    if sparse or low_light or fragmentation > 0.25 or (mean_conf and mean_conf < 0.4) or motion_p95 > 8.0:
+    if sparse or low_light or fragmentation > 0.25 or (mean_conf and mean_conf < 0.4) or motion_p95 > (30.0 if options.stabilise else 8.0):
         risk = "high"
     elif fragmentation > 0.10 or (mean_conf and mean_conf < 0.55) or motion_p95 > 3.0 or not detector.info.maps_auto_rickshaw:
         risk = "medium"

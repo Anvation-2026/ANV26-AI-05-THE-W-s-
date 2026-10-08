@@ -150,3 +150,45 @@ def test_the_lines_can_be_drawn_in_any_direction(tmp_path: Path, truth60: synth.
     a = run_perception(path, "v", "0" * 64, info, JunctionConfig.model_validate(truth60.junction), Params(lanes=1), PerceptionOptions(), SyntheticDetector(), SETTINGS)
     b = run_perception(path, "v", "0" * 64, info, flipped, Params(lanes=1), PerceptionOptions(), SyntheticDetector(), SETTINGS)
     assert totals(a) == totals(b)
+
+
+def _drawn_on_first_frame(junction: dict, dy: float) -> JunctionConfig:
+    """The junction as a person would draw it on the first frame, which the shaking camera has moved down by `dy` pixels."""
+    import copy
+
+    j = copy.deepcopy(junction)
+    g = j["geometry"]
+    for group in ("stopLines", "upstreamLines"):
+        for ln in g[group].values():
+            for end in ("a", "b"):
+                ln[end]["y"] += dy
+    for z in g["queueZones"].values():
+        for p in z:
+            p["y"] += dy
+    return JunctionConfig.model_validate(j)
+
+
+def test_a_shaking_camera_is_followed(tmp_path: Path) -> None:
+    """A shaking picture makes parked vehicles look like they move, so queues and waits vanish and tracks split; following the camera fixes both."""
+    truth = synth.simulate(synth.SynthConfig(seconds=120, seed=4))
+    path = tmp_path / "shake.mp4"
+    synth.write_video(truth, path, shake_px=14)  # the first frame sits 14 px lower than the steady scene
+    j = _drawn_on_first_frame(truth.junction, 14)
+    info = probe(path, SETTINGS)
+
+    def run(stabilise: bool):  # type: ignore[no-untyped-def]
+        return run_perception(path, "v", "0" * 64, info, j, Params(lanes=1), PerceptionOptions(stabilise=stabilise), SyntheticDetector(), SETTINGS)
+
+    on, off = run(True), run(False)
+    mean_truth = sum(w["seconds"] for w in truth.waits) / len(truth.waits)
+    assert len(truth.waits) >= 20
+    assert abs(len(on.waits or []) - len(truth.waits)) <= 4, (len(on.waits or []), len(truth.waits))
+    assert abs(sum(on.waits or []) / len(on.waits or [1]) - mean_truth) < 4.0
+    assert len(off.waits or []) < 0.2 * len(truth.waits)  # the problem this fixes is real
+    assert abs(totals(on)["stop"] - sum(1 for c in truth.counts if c["line"] == "stop")) <= 3
+    ids_on = len({d.id for f in on.frames for d in f.detections})
+    ids_off = len({d.id for f in off.frames for d in f.detections})
+    assert ids_on <= truth.vehicles_spawned + 2 < ids_off  # without it, parked vehicles are split into several tracks
+    assert on.quality and on.quality.cameraMotionPx > 8 and any("follows it" in w for w in on.quality.warnings)
+    # boxes drawn on the video stay where the vehicles are in the picture, not in the steady frame
+    assert all(0 <= d.x <= 1280 and 0 <= d.y <= 720 for f in on.frames for d in f.detections)

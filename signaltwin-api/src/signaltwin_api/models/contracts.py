@@ -314,6 +314,7 @@ class PerceptionOptions(_In):
     model: str | None = None
     confidence: float | None = Field(None, ge=0.01, le=0.99)
     frameSampleS: float = Field(0.2, ge=0.04, le=5.0)
+    stabilise: bool = True  # follow a moving camera so the lines stay on the road
     startS: float = Field(0.0, ge=0)
     endS: float | None = Field(None, gt=0)
 
