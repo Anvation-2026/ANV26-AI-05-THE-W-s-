@@ -190,6 +190,20 @@ await step('Demand: computed by the back end, no errors', async () => {
   await page.getByText(/Peak demand|Demand profile|Arrivals|PCU/i).first().waitFor();
 });
 
+await step('Demand from your video drives the simulation comparison', async () => {
+  await go('/demand');
+  await page.getByText('Your perception file').first().waitFor({ timeout: 10000 });
+  await page.getByRole('button', { name: 'Apply to junction' }).click();
+  await toastHas(/Demand applied/);
+  await go('/console');
+  await page.getByRole('button', { name: /Run 20 seeds/ }).click();
+  const region = page.getByRole('region', { name: /Comparison of 20 seeds/ });
+  await region.waitFor({ timeout: 120000 });
+  const text = (await region.innerText()).replace(/\s+/g, ' ');
+  for (const name of ['Webster', 'VAC', 'SignalTwin']) if (!new RegExp(name, 'i').test(text)) throw new Error(`the comparison has no ${name} row`);
+  if (!/delay/i.test(text)) throw new Error('the comparison shows no delay numbers');
+});
+
 await step('Twin: validates against your own video', async () => {
   await go('/twin');
   await page.getByRole('heading', { name: 'Validation' }).waitFor();
