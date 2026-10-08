@@ -290,8 +290,9 @@ await step('Example videos: each loads with its video, analysis and comparison',
     await page.getByRole('radio', { name: 'Back end' }).waitFor();
     await page.getByRole('radio', { name: 'Back end' }).click();
     await page.getByText('Quality of this analysis').waitFor({ timeout: 8000 });
-    const rows = await page.locator('table[aria-label="Vehicles counted per approach and class"] tbody tr').allInnerTexts();
-    if (!rows.some((r) => /[1-9]/.test(r))) throw new Error(`${key}: the counts table is empty`);
+    const status = await page.getByRole('status').filter({ hasText: /Counted so far/ }).first().innerText();
+    const whole = Number((status.match(/of (\d+) in the whole clip/) ?? [])[1]);
+    if (!(whole > 0)) throw new Error(`${key}: nothing was counted in the clip (${status})`);
     const hasVideo = await page.evaluate(async (k) => { const r = await fetch(`/demos/${k}.webm`, { method: 'HEAD' }); return r.ok && (r.headers.get('content-type') || '').startsWith('video'); }, key);
     if (hasVideo) {
       await page.waitForFunction(() => { const v = document.querySelector('video'); return v && v.readyState >= 2; }, null, { timeout: 15000 });
@@ -305,6 +306,26 @@ await step('Example videos: each loads with its video, analysis and comparison',
   await go('/perception');
   await page.locator('#junction-select').selectOption({ label: 'Sample junction, four-way' });
   await toastHas(/Switched to the sample junction/);
+});
+await step('Example video: counts rise as the video plays', async () => {
+  const hasVideo = await page.evaluate(async () => { const r = await fetch('/demos/bangalore.webm', { method: 'HEAD' }); return r.ok && (r.headers.get('content-type') || '').startsWith('video'); });
+  await go('/perception');
+  await page.locator('#junction-select').selectOption({ label: 'Example: Bangalore flyover road' });
+  await toastHas(/loaded, with its video/);
+  await page.getByRole('radio', { name: 'Back end' }).click();
+  const so = () => page.getByRole('status').filter({ hasText: /Counted so far/ }).first();
+  await so().waitFor();
+  const num = async () => Number(((await so().innerText()).match(/: (\d+) of/) ?? [])[1]);
+  if (!hasVideo) return; // the video is not in the repository; the numbers above still render
+  await page.waitForFunction(() => { const v = document.querySelector('video'); return v && v.readyState >= 2; }, null, { timeout: 15000 });
+  await page.evaluate(() => { document.querySelector('video').currentTime = 0; });
+  await page.waitForTimeout(500);
+  const early = await num();
+  await page.evaluate(() => { const v = document.querySelector('video'); v.currentTime = v.duration - 0.2; });
+  await page.waitForTimeout(800);
+  const late = await num();
+  if (!(late > early)) throw new Error(`the count did not rise: ${early} then ${late}`);
+  await page.getByText(/^N \d+$/).first().waitFor({ timeout: 3000 }); // the running count drawn on the video
 });
 await step('Privacy: delete all data', async () => {
   await go('/privacy');

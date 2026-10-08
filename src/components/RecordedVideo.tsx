@@ -71,6 +71,8 @@ export function VideoPerception({
   geometry,
   backend,
   onImport,
+  onTime,
+  countLine,
 }: {
   hasVideo: boolean;
   url: string | null;
@@ -79,9 +81,14 @@ export function VideoPerception({
   geometry: Geometry;
   backend: boolean;
   onImport: () => void;
+  /** Called with the video time as it plays, so counts elsewhere can rise with the video. */
+  onTime?: (t: number) => void;
+  /** Which line's running count to write on the video. */
+  countLine?: 'upstream' | 'stop';
 }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [t, setT] = useState(0);
+  useEffect(() => onTime?.(t), [t, onTime]);
   const [playing, setPlaying] = useState(false);
   const [loadErr, setLoadErr] = useState(false);
   useEffect(() => {
@@ -136,6 +143,24 @@ export function VideoPerception({
               return z && z.length >= 3 ? <polygon key={`z${a}`} points={z.map((p) => `${p.x},${p.y}`).join(' ')} fill="none" stroke="var(--marking)" strokeWidth={stroke} strokeDasharray="4 4" opacity="0.8" /> : null;
             })}
           {layers.counts && APPROACHES.map((a) => [line(geometry.stopLines[a], `s${a}`), line(geometry.upstreamLines[a], `u${a}`, '10 6')])}
+          {countLine &&
+            perception?.counts &&
+            APPROACHES.map((a) => {
+              const ln = countLine === 'stop' ? geometry.stopLines[a] : geometry.upstreamLines[a];
+              if (!ln) return null;
+              const n = perception.counts!.filter((c) => c.approach === a && c.line === countLine && c.t <= t).length;
+              const size = Math.max(16, W / 38);
+              const cx = (ln.a.x + ln.b.x) / 2;
+              const cy = (ln.a.y + ln.b.y) / 2;
+              return (
+                <g key={`n${a}`}>
+                  <rect x={cx - size * 2.4} y={cy - size * 1.35} width={size * 4.8} height={size * 1.5} fill="#10201c" opacity="0.88" />
+                  <text x={cx} y={cy - size * 0.2} fill="#ffffff" fontSize={size} fontWeight="700" textAnchor="middle">
+                    {a} {n}
+                  </text>
+                </g>
+              );
+            })}
           {layers.boxes &&
             boxes.map((d) => (
               <g key={d.id}>
@@ -183,7 +208,7 @@ export function VideoPerception({
 }
 
 /** Charts and quality numbers computed from a recorded analysis rather than from the generated sample feed. */
-export function RecordedPanels({ perception, backend, assumed }: { perception: PerceptionResult; backend: boolean; assumed?: { vph: number[]; fairnessCap?: number } }) {
+export function RecordedPanels({ perception, backend, assumed, line = 'upstream' }: { perception: PerceptionResult; backend: boolean; assumed?: { vph: number[]; fairnessCap?: number }; line?: 'upstream' | 'stop' }) {
   const q = perception.queue;
   const series: Series[] = useMemo(
     () =>
@@ -210,7 +235,7 @@ export function RecordedPanels({ perception, backend, assumed }: { perception: P
   const sf = perception.satFlow;
   const warnings = [...(m?.warnings ?? []), ...(ql?.warnings ?? [])];
   const seconds = m?.durationS ?? Math.max(0, ...perception.frames.map((f) => f.t));
-  const ups = (perception.counts ?? []).filter((c) => c.line === 'upstream');
+  const ups = (perception.counts ?? []).filter((c) => c.line === line);
   const perHour = APPROACHES.map((a) => ({ a, n: ups.filter((c) => c.approach === a).length }));
   const anyFlow = perHour.some((r) => r.n > 0);
   return (

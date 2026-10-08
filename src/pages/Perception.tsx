@@ -39,6 +39,9 @@ export default function Perception() {
   const [logic, setLogic] = useState<'vac' | 'observed' | 'signaltwin'>('vac');
   const [layers, setLayers] = useState({ boxes: true, ids: true, speeds: false, counts: true, queueZones: true });
   const [importOpen, setImportOpen] = useState(false);
+  const [videoT, setVideoT] = useState(0);
+  const [followVideo, setFollowVideo] = useState(true);
+  const [lineChoice, setLineChoice] = useState<'upstream' | 'stop' | 'auto'>('auto');
   const [importErr, setImportErr] = useState<string | null>(null);
 
   // choosing another junction in the top bar while this page is open: show its analysis, or go back to the sample feed
@@ -138,6 +141,9 @@ export default function Perception() {
   };
 
   const fileMode = source === 'file' || source === 'backend';
+  const lineTotals = { upstream: (perception?.counts ?? []).filter((c) => c.line === 'upstream').length, stop: (perception?.counts ?? []).filter((c) => c.line === 'stop').length };
+  // by default count on the line most vehicles crossed: in a short clip many vehicles are already past the upstream line when it starts
+  const countLine: 'upstream' | 'stop' = lineChoice === 'auto' ? (lineTotals.stop > lineTotals.upstream * 1.5 ? 'stop' : 'upstream') : lineChoice;
   const isBackend = source === 'backend';
   const shown = fileMode && (isBackend ? origin === 'backend' : origin !== 'backend') ? perception : null;
   const total = stats.counts.reduce((s, r) => s + r.reduce((a, b) => a + b, 0), 0);
@@ -214,7 +220,7 @@ export default function Perception() {
                 </div>
               </>
             )}
-            {fileMode && <VideoPerception hasVideo={!!videoUrl} url={videoUrl} perception={shown} layers={layers} geometry={junction.geometry} backend={isBackend} onImport={() => setImportOpen(true)} />}
+            {fileMode && <VideoPerception hasVideo={!!videoUrl} url={videoUrl} perception={shown} layers={layers} geometry={junction.geometry} backend={isBackend} onImport={() => setImportOpen(true)} onTime={setVideoT} countLine={followVideo ? countLine : undefined} />}
           </section>
 
           <div className="stack">
@@ -222,6 +228,27 @@ export default function Perception() {
               <h2 id="pc-h" style={{ marginBottom: 8 }}>
                 Counts
               </h2>
+              {fileMode && shown && (shown.counts ?? []).length > 0 && (
+                <div className="stack-sm" style={{ marginBottom: 8 }}>
+                  <div className="row">
+                    <Segmented
+                      label="Line to count on"
+                      value={lineChoice === 'auto' ? countLine : lineChoice}
+                      options={[
+                        { value: 'upstream', label: `Upstream line, ${lineTotals.upstream}` },
+                        { value: 'stop', label: `Stop line, ${lineTotals.stop}` },
+                      ]}
+                      onChange={(v) => setLineChoice(v)}
+                    />
+                    <Check label="Rise with the video" checked={followVideo} onChange={setFollowVideo} />
+                  </div>
+                  <p className="muted tnum" role="status">
+                    {followVideo
+                      ? `Counted so far, up to ${videoT.toFixed(1)} s: ${fileCounts(shown, countLine, videoT).flat().reduce((a, b) => a + b, 0)} of ${lineTotals[countLine]} in the whole clip.`
+                      : `Counted in the whole clip: ${lineTotals[countLine]}.`}
+                  </p>
+                </div>
+              )}
               <div className="table-wrap">
                 <table className="table" aria-label="Vehicles counted per approach and class">
                   <thead>
@@ -238,7 +265,7 @@ export default function Perception() {
                     {APPROACHES.map((a, ap) => (
                       <tr key={a}>
                         <td>{APPROACH_NAMES[a]}</td>
-                        {(fileMode ? fileCounts(shown)[ap] : stats.counts[ap]).map((n, i) => (
+                        {(fileMode ? fileCounts(shown, countLine, followVideo ? videoT : Infinity)[ap] : stats.counts[ap]).map((n, i) => (
                           <td key={i} className="num">
                             {n}
                           </td>
@@ -254,7 +281,7 @@ export default function Perception() {
                 </p>
               )}
               <p className="muted tnum" style={{ marginTop: 8 }}>
-                {fileMode ? (shown ? (isBackend ? 'Counted by the back end on your upstream lines.' : 'From your imported file.') : isBackend ? 'No back end analysis yet. Run Analyse video in the last step of Setup.' : 'No detections for this video yet.') : `${total} vehicles crossed the upstream lines so far. Sample run.`}
+                {fileMode ? (shown ? (isBackend ? `Counted by the back end where vehicles crossed your ${countLine} lines.` : 'From your imported file.') : isBackend ? 'No back end analysis yet. Run Analyse video in the last step of Setup.' : 'No detections for this video yet.') : `${total} vehicles crossed the upstream lines so far. Sample run.`}
               </p>
             </section>
             {!fileMode && (
@@ -270,7 +297,7 @@ export default function Perception() {
                 </section>
               </>
             )}
-            {fileMode && shown && <RecordedPanels perception={shown} backend={isBackend} assumed={demoOf(junction.id)?.assumed} />}
+            {fileMode && shown && <RecordedPanels perception={shown} backend={isBackend} assumed={demoOf(junction.id)?.assumed} line={countLine} />}
             <section className="panel" aria-labelledby="weak-h">
               <h2 id="weak-h">Known weaknesses</h2>
               <ul style={{ marginTop: 8 }}>
@@ -311,9 +338,10 @@ export default function Perception() {
   );
 }
 
-function fileCounts(p: PerceptionResult | null): number[][] {
+/** Vehicles counted by each approach and class on one line, up to time `until` (the whole clip if it is not given). */
+function fileCounts(p: PerceptionResult | null, line: 'upstream' | 'stop' = 'upstream', until = Infinity): number[][] {
   const c = APPROACHES.map(() => VEHICLE_CLASSES.map(() => 0));
-  p?.counts?.filter((x) => x.line === 'upstream').forEach((x) => c[APPROACHES.indexOf(x.approach)][VEHICLE_CLASSES.indexOf(x.cls)]++);
+  p?.counts?.filter((x) => x.line === line && x.t <= until).forEach((x) => c[APPROACHES.indexOf(x.approach)][VEHICLE_CLASSES.indexOf(x.cls)]++);
   return c;
 }
 
