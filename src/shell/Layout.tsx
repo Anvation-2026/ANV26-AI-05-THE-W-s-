@@ -123,7 +123,8 @@ function TopBar({ onShortcuts }: { onShortcuts: () => void }) {
           try {
             await loadDemo(d);
             toast(`${d.name} loaded, with its video and the analysis the back end made of it.`);
-          } catch {
+          } catch (err) {
+            console.error('loading the example failed', err);
             toast('That example could not be loaded. Its analysis files are missing from public/demos. Run the app from the repository folder, or choose another junction.', 'error');
           }
         }}

@@ -183,7 +183,7 @@ export function VideoPerception({
 }
 
 /** Charts and quality numbers computed from a recorded analysis rather than from the generated sample feed. */
-export function RecordedPanels({ perception, backend }: { perception: PerceptionResult; backend: boolean }) {
+export function RecordedPanels({ perception, backend, assumed }: { perception: PerceptionResult; backend: boolean; assumed?: { vph: number[]; fairnessCap?: number } }) {
   const q = perception.queue;
   const series: Series[] = useMemo(
     () =>
@@ -209,8 +209,70 @@ export function RecordedPanels({ perception, backend }: { perception: Perception
   const ql = perception.quality;
   const sf = perception.satFlow;
   const warnings = [...(m?.warnings ?? []), ...(ql?.warnings ?? [])];
+  const seconds = m?.durationS ?? Math.max(0, ...perception.frames.map((f) => f.t));
+  const ups = (perception.counts ?? []).filter((c) => c.line === 'upstream');
+  const perHour = APPROACHES.map((a) => ({ a, n: ups.filter((c) => c.approach === a).length }));
+  const anyFlow = perHour.some((r) => r.n > 0);
   return (
     <>
+      {assumed && (
+        <section className="panel stack-sm" aria-labelledby="assumed-h">
+          <div className="row-between">
+            <h2 id="assumed-h">Busy-hour traffic used by the simulations</h2>
+            <Badge tone="paint">Assumed for this example</Badge>
+          </div>
+          <div className="table-wrap">
+            <table className="table" aria-label="Assumed busy-hour vehicles per hour">
+              <thead>
+                <tr>
+                  <th>Approach</th>
+                  <th className="num">Vehicles per hour</th>
+                </tr>
+              </thead>
+              <tbody>
+                {APPROACHES.map((a, i) => (
+                  <tr key={a}>
+                    <td>{APPROACH_NAMES[a]}</td>
+                    <td className="num">{assumed.vph[i] > 0 ? assumed.vph[i].toLocaleString() : 'no traffic on this road'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {assumed.fairnessCap && <p className="muted">Longest red allowed for any road: {assumed.fairnessCap} s. This is a four-phase junction, where every road waits for three other greens, so the default of 60 s is too tight; the fixed Webster plan alone reaches about 87 s. You can change it on the Parameters page.</p>}
+          <p className="muted">
+            These are busy-hour volumes chosen for this example. They were not counted from the video, which is only a few seconds long, so its own counts are far smaller. The Console, Experiments and Report pages run the four signal plans on this traffic, the way Scenario A and B do for the sample junction.
+          </p>
+        </section>
+      )}
+      {anyFlow && seconds > 0 && (
+        <section className="panel stack-sm" aria-labelledby="rate-h">
+          <h2 id="rate-h">Flow at this clip's pace</h2>
+          <div className="table-wrap">
+            <table className="table" aria-label="Vehicles counted and the hourly rate they imply">
+              <thead>
+                <tr>
+                  <th>Approach</th>
+                  <th className="num">Counted in {seconds.toFixed(0)} s</th>
+                  <th className="num">Rate per hour</th>
+                </tr>
+              </thead>
+              <tbody>
+                {perHour.map((r) => (
+                  <tr key={r.a}>
+                    <td>{APPROACH_NAMES[r.a]}</td>
+                    <td className="num">{r.n}</td>
+                    <td className="num">{r.n ? `${Math.round((r.n / seconds) * 3600).toLocaleString()} vehicles` : 'none seen'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="muted">
+            The hourly rate is the count scaled up from {seconds.toFixed(0)} seconds of video, so it is a rough extrapolation. It rises and falls with the signal phase and with how long the clip is. A clip of several minutes covering whole signal cycles gives a much steadier figure.
+          </p>
+        </section>
+      )}
       {q && series.length > 0 && (
         <section className="panel">
           <LineChart title="Queue over time by approach, from your video" series={series} height={220} xLabel="Time (s)" yLabel="Queue (PCU)" xDomain={[0, Math.max(1, (q.approaches.N ?? []).length)]} xFormat={(n) => String(Math.round(n))} yFormat={(n) => n.toFixed(0)} unit="PCU" />

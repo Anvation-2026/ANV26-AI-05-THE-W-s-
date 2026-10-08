@@ -281,7 +281,7 @@ await step('Example videos: each loads with its video, analysis and comparison',
     ['Example: overhead four-way junction', 'topdown'],
     ['Example: Bangalore flyover road', 'bangalore'],
     ['Example: Delhi highway', 'delhi'],
-    ['Example: time-lapse junction (not usable)', 'timelapse'],
+    ['Example: large multi-lane junction (time-lapse)', 'timelapse'],
   ];
   for (const [label, key] of demos) {
     await go('/perception');

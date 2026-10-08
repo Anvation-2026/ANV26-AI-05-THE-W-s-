@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { APPROACH_NAMES, APPROACHES, VEHICLE_CLASSES, type DemandEstimate, type VehicleClass } from '../contracts';
 import { useApp } from '../store/app';
 import { api } from '../api';
@@ -8,6 +8,7 @@ import { Histogram, LineChart, MixBars, type Series } from '../components/charts
 import { Badge, Button, Check, DataTable, EmptyState, ErrorState, NumberField, PageHeader, SelectField, SkeletonChart, SkeletonTable, SliderField, toast, useConfirm, type Column } from '../components/ui';
 import { downloadText, toCsv } from '../lib/util';
 import { Footer } from '../shell/Layout';
+import { demoOf } from '../demos';
 
 const SERIES_TONES = ['new', 'old', 'ink', 'new'] as const;
 const DASHES = [undefined, undefined, '6 4', '2 4'];
@@ -170,6 +171,7 @@ export default function Demand() {
         <div className="row" style={{ marginBottom: 16 }}>
           <Badge tone={source === 'sample' ? 'paint' : 'plain'}>{source === 'sample' ? 'Sample junction data' : source === 'counts' ? 'Your counts file' : 'Your perception file'}</Badge>
           {appliedAt && <span className="muted">Applied {new Date(appliedAt).toLocaleString()}.</span>}
+          {demoOf(junction.id) && <span className="muted">This example's simulations use the busy-hour traffic assumed for it (see Perception), not the few seconds of counts below. Pressing Apply replaces it with these counts.</span>}
           {!appliedAt && <span className="muted">Not applied yet. Simulations use the built-in demand until you press Apply to junction.</span>}
         </div>
 

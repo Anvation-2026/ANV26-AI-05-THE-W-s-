@@ -16,6 +16,7 @@ import { Sim } from '../engine/sim';
 import { hash01 } from '../engine/rng';
 import { Footer } from '../shell/Layout';
 import { RecordedPanels, VideoPerception } from '../components/RecordedVideo';
+import { demoOf } from '../demos';
 
 type Source = 'sample' | 'file' | 'backend';
 
@@ -269,7 +270,7 @@ export default function Perception() {
                 </section>
               </>
             )}
-            {fileMode && shown && <RecordedPanels perception={shown} backend={isBackend} />}
+            {fileMode && shown && <RecordedPanels perception={shown} backend={isBackend} assumed={demoOf(junction.id)?.assumed} />}
             <section className="panel" aria-labelledby="weak-h">
               <h2 id="weak-h">Known weaknesses</h2>
               <ul style={{ marginTop: 8 }}>
