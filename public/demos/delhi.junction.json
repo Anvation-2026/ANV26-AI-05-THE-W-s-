@@ -1,0 +1,106 @@
+{
+  "id": "Delhi highway",
+  "name": "Delhi highway",
+  "source": "video",
+  "videoSize": {
+    "w": 898,
+    "h": 506,
+    "duration": 6
+  },
+  "geometry": {
+    "stopLines": {
+      "N": {
+        "a": {
+          "x": 520,
+          "y": 350
+        },
+        "b": {
+          "x": 830,
+          "y": 350
+        }
+      },
+      "E": {
+        "a": {
+          "x": 100,
+          "y": 160
+        },
+        "b": {
+          "x": 380,
+          "y": 160
+        }
+      }
+    },
+    "upstreamLines": {
+      "N": {
+        "a": {
+          "x": 440,
+          "y": 150
+        },
+        "b": {
+          "x": 700,
+          "y": 150
+        }
+      },
+      "E": {
+        "a": {
+          "x": 0,
+          "y": 380
+        },
+        "b": {
+          "x": 440,
+          "y": 380
+        }
+      }
+    },
+    "queueZones": {
+      "N": [
+        {
+          "x": 445,
+          "y": 155
+        },
+        {
+          "x": 700,
+          "y": 155
+        },
+        {
+          "x": 830,
+          "y": 345
+        },
+        {
+          "x": 520,
+          "y": 345
+        }
+      ],
+      "E": [
+        {
+          "x": 10,
+          "y": 375
+        },
+        {
+          "x": 435,
+          "y": 375
+        },
+        {
+          "x": 375,
+          "y": 165
+        },
+        {
+          "x": 105,
+          "y": 165
+        }
+      ]
+    }
+  },
+  "calibration": null,
+  "observed": {
+    "greens": [
+      30,
+      30
+    ],
+    "yellow": 3,
+    "allRed": 2,
+    "fourPhase": false
+  },
+  "updatedAt": "2026-10-09T00:00:00Z",
+  "videoName": "stock-footage-india-delhi-august-busy-traffic-flow-on-delhi-highway-road.webm"
+}

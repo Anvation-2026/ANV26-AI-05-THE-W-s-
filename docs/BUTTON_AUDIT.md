@@ -10,7 +10,8 @@ Every button, toggle, slider, link and form control, with what it calls and what
 | --- | --- | --- |
 | Skip to content link | Browser anchor | Focus moves to the main region |
 | Wordmark link * | Router | Goes to Home |
-| Junction select | `setJunction(SAMPLE_JUNCTION)` | Switches to the sample junction and shows a toast |
+| Junction select, with four example videos * | `loadDemo`, `leaveDemo` | Loads the example's drawing, video, saved analysis and demand so every page shows its real results. Asks before replacing your own junction |
+| Junction select (sample) | `setJunction(SAMPLE_JUNCTION)` | Switches to the sample junction and shows a toast |
 | Back end badge † | Opens the Back end dialog | Shows connected, checking, needs a model or not connected |
 | Back end dialog: address, access key, Check again † | `setUrl`, `setApiKey`, `check` | Saves the address, re-runs the health check, shows version, model, queue, limits |
 | Back end dialog: Where simulations run † | `setSimulation` | Browser (default) or back end. Same numbers either way |

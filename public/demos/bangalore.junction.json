@@ -1,0 +1,106 @@
+{
+  "id": "Bangalore flyover",
+  "name": "Bangalore flyover",
+  "source": "video",
+  "videoSize": {
+    "w": 898,
+    "h": 506,
+    "duration": 16
+  },
+  "geometry": {
+    "stopLines": {
+      "N": {
+        "a": {
+          "x": 450,
+          "y": 360
+        },
+        "b": {
+          "x": 898,
+          "y": 360
+        }
+      },
+      "E": {
+        "a": {
+          "x": 0,
+          "y": 230
+        },
+        "b": {
+          "x": 310,
+          "y": 230
+        }
+      }
+    },
+    "upstreamLines": {
+      "N": {
+        "a": {
+          "x": 470,
+          "y": 200
+        },
+        "b": {
+          "x": 880,
+          "y": 200
+        }
+      },
+      "E": {
+        "a": {
+          "x": 0,
+          "y": 430
+        },
+        "b": {
+          "x": 300,
+          "y": 430
+        }
+      }
+    },
+    "queueZones": {
+      "N": [
+        {
+          "x": 455,
+          "y": 205
+        },
+        {
+          "x": 880,
+          "y": 205
+        },
+        {
+          "x": 898,
+          "y": 355
+        },
+        {
+          "x": 450,
+          "y": 355
+        }
+      ],
+      "E": [
+        {
+          "x": 0,
+          "y": 235
+        },
+        {
+          "x": 310,
+          "y": 235
+        },
+        {
+          "x": 300,
+          "y": 425
+        },
+        {
+          "x": 0,
+          "y": 425
+        }
+      ]
+    }
+  },
+  "calibration": null,
+  "observed": {
+    "greens": [
+      30,
+      30
+    ],
+    "yellow": 3,
+    "allRed": 2,
+    "fourPhase": false
+  },
+  "updatedAt": "2026-10-09T00:00:00Z",
+  "videoName": "stock-footage-bangalore-india-october-th-daytime-capture-of-a-very-busy-road-of-bangalore-ecospace-over.webm"
+}

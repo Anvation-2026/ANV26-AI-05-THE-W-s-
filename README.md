@@ -42,6 +42,10 @@ npm run shots        # screenshots, for example: node scripts/shots.mjs "/,/cons
 
 Run `npm run build` before `e2e`, `axe`, `worstcase` and `shots`, because they serve the built app.
 
+## Example videos
+
+The junction menu in the top bar lists four example videos next to the sample junction. Choosing one loads its drawn junction, its video, the analysis the back end made of it and the demand from its counts, so Perception, Demand, Twin, Console and Report all show real results without uploading anything or running the back end. The analysis files are in `public/demos`. The videos are stock footage with a watermark and are not in the repository: put them in `public/demos` as `topdown.webm`, `bangalore.webm`, `delhi.webm` and `timelapse.webm` to see the picture (everything else works without them). The overhead junction is the best example for the comparison; the time-lapse is included to show a clip the tool cannot use.
+
 ## Pages
 
 | Route | Purpose |

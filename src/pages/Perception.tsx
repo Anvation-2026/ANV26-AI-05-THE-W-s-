@@ -40,6 +40,12 @@ export default function Perception() {
   const [importOpen, setImportOpen] = useState(false);
   const [importErr, setImportErr] = useState<string | null>(null);
 
+  // choosing another junction in the top bar while this page is open: show its analysis, or go back to the sample feed
+  useEffect(() => {
+    setSource(origin === 'backend' && perception ? 'backend' : hasVideo ? 'file' : 'sample');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [junction.id, origin, !!perception]);
+
   const factory = useCallback(() => {
     const p = captureParams(params);
     return [
@@ -191,7 +197,7 @@ export default function Perception() {
               <Check label="Speeds" checked={layers.speeds} onChange={(v) => setLayers({ ...layers, speeds: v })} />
             </div>
           </div>
-          <Badge tone={fileMode ? 'plain' : 'paint'}>{isBackend ? 'Your video, back end' : fileMode ? 'Your video' : 'Sample data'}</Badge>
+          <Badge tone={fileMode ? 'plain' : 'paint'}>{isBackend ? (junction.id.startsWith('demo-') ? 'Example video, back end' : 'Your video, back end') : fileMode ? 'Your video' : 'Sample data'}</Badge>
         </div>
 
         <div className="split split-b" style={{ marginTop: 'var(--s-3)' }}>

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Component, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BrandMark, Icon, type IconName } from '../components/Icon';
-import { Button, Dialog, IconButton, ToastHost, toast, useTheme } from '../components/ui';
+import { Button, Dialog, IconButton, ToastHost, toast, useConfirm, useTheme } from '../components/ui';
+import { DEMOS, demoOf, isDemoId, leaveDemo, loadDemo, restoreDemo } from '../demos';
 import { PatternDefs } from '../components/charts';
 import { useApp, clearAllLocalData } from '../store/app';
 import { getResult } from '../store/results';
@@ -88,6 +89,7 @@ function TopBar({ onShortcuts }: { onShortcuts: () => void }) {
   const setJunction = useApp((s) => s.setJunction);
   const [which, setWhich] = useState<'current' | 'sample'>(usingSample ? 'sample' : 'current');
   const [backendOpen, setBackendOpen] = useState(false);
+  const { ask, node: confirmNode } = useConfirm();
   useEffect(() => setWhich(usingSample ? 'sample' : 'current'), [usingSample]);
   return (
     <>
@@ -103,21 +105,41 @@ function TopBar({ onShortcuts }: { onShortcuts: () => void }) {
       <select
         id="junction-select"
         className="topbar-select"
-        value={which}
-        onChange={(e) => {
-          const v = e.target.value as 'current' | 'sample';
+        value={isDemoId(junction.id) ? junction.id : which}
+        onChange={async (e) => {
+          const v = e.target.value;
+          if (v === 'current') return;
+          const ownWork = !usingSample && !isDemoId(junction.id);
+          if (ownWork && !(await ask('Replace your junction', `Choosing this replaces "${junction.name}", which is saved in this browser. Export it from Setup first if you want to keep it.`, 'Replace it', true))) return;
           if (v === 'sample') {
+            leaveDemo();
             setJunction(SAMPLE_JUNCTION, true);
+            setWhich('sample');
             toast('Switched to the sample junction.');
+            return;
           }
-          setWhich(v);
+          const d = demoOf(v);
+          if (!d) return;
+          try {
+            await loadDemo(d);
+            toast(`${d.name} loaded, with its video and the analysis the back end made of it.`);
+          } catch {
+            toast('That example could not be loaded. Its analysis files are missing from public/demos. Run the app from the repository folder, or choose another junction.', 'error');
+          }
         }}
       >
-        {!usingSample && <option value="current">{junction.name}</option>}
+        {!usingSample && !isDemoId(junction.id) && <option value="current">{junction.name}</option>}
         <option value="sample">{SAMPLE_JUNCTION.name}</option>
+        <optgroup label="Example videos">
+          {DEMOS.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </optgroup>
       </select>
-      <span className="badge" title={usingSample ? 'Built-in data. Nothing here came from your video.' : 'Built from the files you provided.'}>
-        {usingSample ? 'Sample junction' : 'Your junction'}
+      <span className="badge" title={usingSample ? 'Built-in data. Nothing here came from your video.' : isDemoId(junction.id) ? 'An example video with the analysis the back end made of it.' : 'Built from the files you provided.'}>
+        {usingSample ? 'Sample junction' : isDemoId(junction.id) ? 'Example video' : 'Your junction'}
       </span>
       <BackendBadge onClick={() => setBackendOpen(true)} />
       <IconButton icon="keyboard" label="Keyboard shortcuts" onClick={onShortcuts} className="hide-mobile" />
@@ -125,6 +147,7 @@ function TopBar({ onShortcuts }: { onShortcuts: () => void }) {
     </header>
     {/* outside the header: the topbar gives its buttons a light text colour that would be unreadable on the dialog */}
     <BackendDialog open={backendOpen} onClose={() => setBackendOpen(false)} />
+    {confirmNode}
     </>
   );
 }
@@ -179,7 +202,7 @@ function ContextBar() {
       </div>
       <div className="ctx-item">
         <dt>Data</dt>
-        <dd>{usingSample ? 'Sample junction' : junction.source === 'video' ? 'Your video' : junction.source === 'counts' ? 'Your counts file' : 'Your junction'}</dd>
+        <dd>{usingSample ? 'Sample junction' : isDemoId(junction.id) ? 'Example video' : junction.source === 'video' ? 'Your video' : junction.source === 'counts' ? 'Your counts file' : 'Your junction'}</dd>
       </div>
       <div className="ctx-item">
         <dt>Scenario</dt>
@@ -225,6 +248,7 @@ export function Layout() {
 
   useEffect(() => {
     startBackendMonitor();
+    if (isDemoId(useApp.getState().junction.id)) void restoreDemo().catch(() => undefined); // the saved junction is an example: bring back its video and analysis
     // bring back the analysis result that was saved in IndexedDB before the page was reloaded
     const st = useApp.getState();
     if (!st.perception && st.serverVideo?.resultKey && st.perceptionOrigin === 'backend') {

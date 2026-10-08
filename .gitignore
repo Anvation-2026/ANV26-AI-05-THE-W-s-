@@ -20,3 +20,7 @@ __pycache__/
 .ruff_cache/
 *.part
 tmp-e2e/
+
+# example videos are stock footage with a watermark: kept out of git (the analysis results next to them are committed)
+public/demos/*.webm
+public/demos/*.mp4

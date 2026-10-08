@@ -1,0 +1,106 @@
+{
+  "id": "Time-lapse junction",
+  "name": "Time-lapse junction",
+  "source": "video",
+  "videoSize": {
+    "w": 596,
+    "h": 336,
+    "duration": 13
+  },
+  "geometry": {
+    "stopLines": {
+      "N": {
+        "a": {
+          "x": 205,
+          "y": 115
+        },
+        "b": {
+          "x": 255,
+          "y": 115
+        }
+      },
+      "E": {
+        "a": {
+          "x": 355,
+          "y": 235
+        },
+        "b": {
+          "x": 420,
+          "y": 235
+        }
+      }
+    },
+    "upstreamLines": {
+      "N": {
+        "a": {
+          "x": 200,
+          "y": 20
+        },
+        "b": {
+          "x": 255,
+          "y": 20
+        }
+      },
+      "E": {
+        "a": {
+          "x": 355,
+          "y": 325
+        },
+        "b": {
+          "x": 415,
+          "y": 325
+        }
+      }
+    },
+    "queueZones": {
+      "N": [
+        {
+          "x": 205,
+          "y": 25
+        },
+        {
+          "x": 255,
+          "y": 25
+        },
+        {
+          "x": 255,
+          "y": 110
+        },
+        {
+          "x": 205,
+          "y": 110
+        }
+      ],
+      "E": [
+        {
+          "x": 355,
+          "y": 320
+        },
+        {
+          "x": 415,
+          "y": 320
+        },
+        {
+          "x": 420,
+          "y": 240
+        },
+        {
+          "x": 355,
+          "y": 240
+        }
+      ]
+    }
+  },
+  "calibration": null,
+  "observed": {
+    "greens": [
+      30,
+      30
+    ],
+    "yellow": 3,
+    "allRed": 2,
+    "fourPhase": false
+  },
+  "updatedAt": "2026-10-09T00:00:00Z",
+  "videoName": "stock-footage-time-lapse-aerial-footage-of-traffic-on-a-large-multi-lane-junction.webm"
+}

@@ -276,6 +276,36 @@ await step('Theme toggle persists', async () => {
   const kept = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   if (kept !== after) throw new Error('theme not persisted');
 });
+await step('Example videos: each loads with its video, analysis and comparison', async () => {
+  const demos = [
+    ['Example: overhead four-way junction', 'topdown'],
+    ['Example: Bangalore flyover road', 'bangalore'],
+    ['Example: Delhi highway', 'delhi'],
+    ['Example: time-lapse junction (not usable)', 'timelapse'],
+  ];
+  for (const [label, key] of demos) {
+    await go('/perception');
+    await page.locator('#junction-select').selectOption({ label });
+    await toastHas(/loaded, with its video/);
+    await page.getByRole('radio', { name: 'Back end' }).waitFor();
+    await page.getByRole('radio', { name: 'Back end' }).click();
+    await page.getByText('Quality of this analysis').waitFor({ timeout: 8000 });
+    const rows = await page.locator('table[aria-label="Vehicles counted per approach and class"] tbody tr').allInnerTexts();
+    if (!rows.some((r) => /[1-9]/.test(r))) throw new Error(`${key}: the counts table is empty`);
+    const hasVideo = await page.evaluate(async (k) => { const r = await fetch(`/demos/${k}.webm`, { method: 'HEAD' }); return r.ok && (r.headers.get('content-type') || '').startsWith('video'); }, key);
+    if (hasVideo) {
+      await page.waitForFunction(() => { const v = document.querySelector('video'); return v && v.readyState >= 2; }, null, { timeout: 15000 });
+      await page.evaluate(() => { const v = document.querySelector('video'); v.currentTime = Math.max(0.5, v.duration * 0.5); });
+      await page.waitForFunction(() => document.querySelectorAll('.canvas-stage svg g rect').length > 0, null, { timeout: 10000 });
+    }
+    await go('/console');
+    await page.getByRole('button', { name: /Run 20 seeds/ }).click();
+    await page.getByRole('region', { name: /Comparison of 20 seeds/ }).waitFor({ timeout: 90000 });
+  }
+  await go('/perception');
+  await page.locator('#junction-select').selectOption({ label: 'Sample junction, four-way' });
+  await toastHas(/Switched to the sample junction/);
+});
 await step('Privacy: delete all data', async () => {
   await go('/privacy');
   await page.getByRole('button', { name: 'Delete all data' }).click();
