@@ -24,3 +24,5 @@ tmp-e2e/
 # example videos are stock footage with a watermark: kept out of git (the analysis results next to them are committed)
 public/demos/*.webm
 public/demos/*.mp4
+signaltwin-api/models/**/*.pt
+signaltwin-api/models/**/*.onnx
